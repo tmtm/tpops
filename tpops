@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.10 2001/12/28 08:12:49 tommy Exp $
+# $Id: tpops,v 1.11 2002/01/25 07:57:42 tommy Exp $
 
 require 'socket'
 
@@ -16,15 +16,19 @@ end
 class TPOPS
 
   def initialize()
-    trap "CHLD", nil		# ignore child process's status
-    sock = TCPServer::new(Port)
-    loop do
-      conn = sock.accept
-      fork do
-	sock.close
-	connection(conn)
+    if WithInetd then
+      connection(Socket::for_fd $stdin.fileno)
+    else
+      trap "CHLD", nil		# ignore child process's status
+      sock = TCPServer::new(Port)
+      loop do
+	conn = sock.accept
+	fork do
+	  sock.close
+	  connection(conn)
+	end
+	conn.close
       end
-      conn.close
     end
   end
 
