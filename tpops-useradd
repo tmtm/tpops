@@ -1,12 +1,10 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-useradd,v 1.1 2001/05/06 14:48:33 tommy Exp $
+# $Id: tpops-useradd,v 1.2 2001/05/07 04:14:37 tommy Exp $
 
 require 'mysql'
 
-MySQL_Server = 'localhost'
-MySQL_User = 'root'
-MySQL_Pass = 'fuga'
-MySQL_DB = 'tpops'
+Dir = $0.sub(/[^\/]*$/, '')
+load Dir+'/tpops.conf'
 
 if ARGV.size != 3 then
   $stderr.puts "usage: tpops-useradd login passwd mail_address"
