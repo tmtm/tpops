@@ -1,4 +1,4 @@
-# $Id: tpops_maildir.rb,v 1.5 2001/07/16 09:38:47 tommy Exp $
+# $Id: tpops_maildir.rb,v 1.6 2001/08/01 00:39:22 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -18,19 +18,23 @@ class TPOPS
 
   def auth(user, pass)
     m = mycon
-    res = m.query("select uid, maildir from user where login='#{m.quote user}' and passwd='#{m.quote pass}'")
+    res = m.query(sprintf(AuthQuery_Maildir, m.quote user))
     if res.num_rows != 1 then
       return false
     end
-    uid, @maildir = res.fetch_row
+    uid, p, maildir = res.fetch_row
+    if pass != p then
+      return false
+    end
     @uid = uid.to_i
+    @maildir = maildir
     m.close
     return true
   end
 
   def apop_auth(user, key)
     m = mycon
-    res = m.query("select uid, passwd, maildir from user where login='#{m.quote user}'")
+    res = m.query(sprintf(AuthQuery_Maildir, m.quote user))
     if res.num_rows != 1 then
       return false
     end

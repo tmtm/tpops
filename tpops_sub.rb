@@ -1,4 +1,4 @@
-# $Id: tpops_sub.rb,v 1.3 2001/05/19 22:47:33 tommy Exp $
+# $Id: tpops_sub.rb,v 1.4 2001/08/01 00:39:22 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -11,18 +11,22 @@ class TPOPS
 
   def auth(user, pass)
     m = mycon
-    res = m.query("select uid from user where login='#{m.quote user}' and passwd='#{m.quote pass}'")
+    res = m.query(sprintf(AuthQuery, m.quote user))
     if res.num_rows != 1 then
       return false
     end
-    @uid = res.fetch_row[0].to_i
+    uid, p = res.fetch_row
+    if pass != p then
+      return false
+    end
+    @uid = uid.to_i
     m.close
     return true
   end
 
   def apop_auth(user, key)
     m = mycon
-    res = m.query("select uid, passwd from user where login='#{m.quote user}'")
+    res = m.query(sprintf(AuthQuery, m.quote user))
     if res.num_rows != 1 then
       return false
     end
