@@ -1,0 +1,9 @@
+--- postfix-20010228-pl02/src/local/maildir.c.orig	Wed Jan 31 11:30:03 2001
++++ postfix-20010228-pl02/src/local/maildir.c	Fri Jun 29 03:44:51 2001
+@@ -138,5 +138,5 @@
+ 	vstring_sprintf(why, "create %s: %m", tmpfile);
+     } else {
+-	if (mail_copy(COPY_ATTR(state.msg_attr), dst, copy_flags, "\n", why) == 0) {
++	if (mail_copy(COPY_ATTR(state.msg_attr), dst, copy_flags, "\r\n", why) == 0) {
+ 	    if (sane_link(tmpfile, newfile) < 0
+ 		&& (errno != ENOENT

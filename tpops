@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.7 2001/07/11 07:53:59 tommy Exp $
+# $Id: tpops,v 1.8 2001/07/11 15:53:23 tommy Exp $
 
 require 'socket'
 
@@ -33,6 +33,8 @@ class TPOPS
     @status = :AUTHORIZATION
     @user = nil
     @apopkey = "<#{$$}.#{Time::now.to_i}@#{Hostname}>"
+
+    Thread::new do sleep ConnectionKeepTime; exit end
 
     @sock.write "+OK TPOPS ready. #{@apopkey}\r\n"
     loop do
@@ -151,10 +153,6 @@ class TPOPS
     end
     at_exit do
       unlock()
-    end
-    Thread::new do
-      sleep ConnectionKeepTime
-      exit
     end
     @status = :TRANSACTION
   end

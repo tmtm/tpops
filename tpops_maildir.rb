@@ -1,4 +1,4 @@
-# $Id: tpops_maildir.rb,v 1.3 2001/07/11 14:53:33 tommy Exp $
+# $Id: tpops_maildir.rb,v 1.4 2001/07/11 15:53:23 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -43,25 +43,18 @@ class TPOPS
   def reset_msgno()
     @deleted = []
     files = []
-    path = @maildir+'/cur'
-    Dir::foreach(path) do |f|
-      if f !~ /^\./ then
-	p = path+'/'+f
-	s = File::stat(p)
-	size = s.size
-	if not MaildirCRLF then
-	  r = File::open(p) do |f| f.read end
-	  size = r.gsub(/\n/, "\r\n").size
+    [@maildir+'/cur', @maildir+'/new'].each do |path|
+      Dir::foreach(path) do |f|
+	if f !~ /^\./ then
+	  p = path+'/'+f
+	  s = File::stat(p)
+	  size = s.size
+	  if not MaildirCRLF then
+	    r = File::open(p) do |f| f.read end
+	    size = r.gsub(/\n/, "\r\n").size
+	  end
+	  files << Files::new(p, size, s.mtime.to_i)
 	end
-	files << Files::new(p, size, s.mtime.to_i)
-      end
-    end
-    path = @maildir+'/new'
-    Dir::foreach(path) do |f|
-      if f !~ /^\./ then
-	p = path+'/'+f
-	s = File::stat(p)
-	files << Files::new(p, s.size, s.mtime.to_i)
       end
     end
     @files = files.sort do |a, b|
@@ -92,7 +85,7 @@ class TPOPS
     size = 0
     @files.each_index do |i|
       if not @deleted.include? i+1 then
-	size += f.size
+	size += @files[i].size
       end
     end
     [@files.size, size]
