@@ -1,11 +1,17 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.6 2001/06/29 05:40:53 tommy Exp $
+# $Id: tpops,v 1.7 2001/07/11 07:53:59 tommy Exp $
 
 require 'socket'
 
 ScriptDir = $0.sub(/[^\/]*$/, '')
-load ScriptDir+'tpops_sub.rb'
 load ScriptDir+'tpops.conf'
+Mailbox = 'MySQL' unless defined? Mailbox
+case Mailbox
+when 'Maildir'
+  load ScriptDir+'tpops_maildir.rb'
+else
+  load ScriptDir+'tpops_sub.rb'
+end
 
 class TPOPS
 

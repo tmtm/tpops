@@ -1,14 +1,17 @@
 TPOPS - Tommy's POP Server
 
 TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
-されています。
+されています。POP ログイン名やメールアドレスなどのユーザ情報、メール本文
+は MySQL のテーブルで管理されます。メールは Maildir 形式でディスク上に置
+くこともできます。
 
 [インストール]
 
 0. MySQL をインストールして、TPOPS 用のデータベースを作成しておいてくだ
    さい。
 
-1. tpops, tpops_sub.rb, tpops.conf を同じディレクトリに置いてください。
+1. tpops, tpops_sub.rb, tpops_maildir.rb, tpops.conf を同じディレクトリ
+   に置いてください。
 
     例)
 	# mkdir /usr/local/tpops
@@ -16,10 +19,11 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
 
 2. tpops.conf を編集してください。
 
-    Port:	ポート番号
-    Hostname:	自分のホスト名
+    Port:		ポート番号
+    Hostname:		自分のホスト名
     ConnectionKeepTime:	最大接続時間
     CommandTimeout:	コマンド待ち時間
+    Mailbox:		"MySQL" または "Maildir"
 
     MySQL_Server:	MySQLサーバ
     MySQL_User:		MySQLユーザ
@@ -39,14 +43,16 @@ user テーブルにユーザ情報を登録してください。
 	login		POPログイン名
 	passwd		POPパスワード
 	mail		メールアドレス
+	maildir		Maildir の場所(Maildir 形式を使用する場合)
 
 簡単に登録するためのコマンド tpops-useradd も用意してます。
 
-	% tpops-useradd  ログイン名  パスワード  メールアドレス
+	% tpops-useradd ログイン名 パスワード メールアドレス [Maildir]
 
 [メール登録]
 
-msg テーブルにメッセージを登録してください。
+Mailbox が "MySQL" の場合、メールは msg テーブルで管理されます。msg テー
+ブルにメッセージを登録してください。
 
 	id		メッセージ番号
 	uid		ユーザID
@@ -77,6 +83,13 @@ unknown のエラーメールが送信者に返されます。
 	tpops  unix  -  n  n  -  -  pipe
 	  user=nobody argv=/usr/local/tpops/tpops-store ${recipient}
 
+[Postfix で Maildir 形式を使用する場合の注意]
+
+Postfix では、/etc/postfix/main.cf に home_mailbox = Maildir/ と指定すれ
+ば、Maildir 形式で配送されます。しかし、格納されたメールの改行コードは、
+"\r\n" ではなく "\n" になっています。これだと POP のプロトコル上、あまり
+よろしくないので、Postfix の local を postfix-local.patch のように変更し
+てください。
 
 [注意]
 
@@ -88,4 +101,4 @@ unknown のエラーメールが送信者に返されます。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.3 2001/05/20 10:13:11 tommy Exp $
+$Id: README.ja,v 1.4 2001/07/11 07:53:59 tommy Exp $

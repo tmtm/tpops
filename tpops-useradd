@@ -1,18 +1,18 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-useradd,v 1.3 2001/05/19 08:50:33 tommy Exp $
+# $Id: tpops-useradd,v 1.4 2001/07/11 07:53:59 tommy Exp $
 
 require 'mysql'
 
 Dir = $0.sub(/[^\/]*$/, '')
 load Dir+'tpops.conf'
 
-if ARGV.size != 3 then
-  $stderr.puts "usage: tpops-useradd login passwd mail_address"
+if ARGV.size < 3 then
+  $stderr.puts "usage: tpops-useradd login passwd mail_address [maildir]"
   exit 1
 end
 
-login, passwd, mail = ARGV
+login, passwd, mail, maildir = ARGV
 
 my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-my.query("insert into user (login,passwd,mail) values ('#{my.quote login}','#{my.quote passwd}','#{my.quote mail}')")
+my.query("insert into user (login,passwd,mail,maildir) values ('#{my.quote login}','#{my.quote passwd}','#{my.quote mail}','#{my.quote (maildir||'')}')")
 my.close
