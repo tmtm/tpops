@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.1 2002/02/06 17:58:02 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.2 2002/02/26 16:25:55 tommy Exp $
 
 class TPOPS
 
@@ -78,8 +78,7 @@ class TPOPS
     def retr(msg)
       if not exist? msg then return nil end
       r = File::open(@files[msg-1].name) do |f| f.read end
-      if not MaildirCRLF then
-	r.gsub!(/\n/, "\r\n")
+      r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
       end
       r
     end
@@ -99,9 +98,7 @@ class TPOPS
     def top(msg, lines)
       if not exist? msg then return nil end
       r = File::open(@files[msg-1].name) do |f| f.read end
-      if not MaildirCRLF then
-	r.gsub!(/\n/, "\r\n")
-      end
+      r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
       if r =~ /\r\n\r\n/ then
 	h = $` + "\r\n"	#`
 	b = $'		#'
