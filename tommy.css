@@ -1,11 +1,11 @@
 body {
 	color: black;
-	background: #dfd;
+	background: white;
 }
 
 h1 {
 	color: white;
-	background: blue;
+	background: #08d;
 	width: 100%;
 }
 
@@ -25,9 +25,9 @@ h1 a:hover {
 
 h2 {
 	width: 100%;
-	border: thin red;
+	border: thin #0cc;
 	border-style: solid none;
-	background: #fee;
+	background: #cff;
 }
 
 h3 {
