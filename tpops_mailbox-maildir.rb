@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.5 2002/04/21 05:25:33 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.6 2002/06/27 13:34:00 tommy Exp $
 
 class TPOPS
 
@@ -21,6 +21,11 @@ class TPOPS
       if @files.size < msg then return nil end
       if @files[msg-1].deleted? then return nil end
       true
+    end
+
+    def normalize_line(line)
+      if line[-1] != ?\n then line << "\n" end
+      if line[-2] != ?\r then line[-1,0] = "\r" end
     end
 
     public
@@ -86,14 +91,13 @@ class TPOPS
       if not exist? msg then return nil end
       if not iterator? then
 	r = File::open(@files[msg-1].name) do |f| f.read end
-	if r[-1,1] != "\n" then line << "\n" end
-	r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
-	r
+	if r[-1] != ?\n then r << "\n" end
+	r.gsub!(/(^|[^\r])\n/o, "\\1\r\n")
+	return r
       end
       File::open(@files[msg-1].name) do |f|
 	f.each do |line|
-	  if line[-1,1] != "\n" then line << "\n" end
-	  line.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	  normalize_line line
 	  yield line
 	end
       end
@@ -117,19 +121,21 @@ class TPOPS
       File::open(@files[msg-1].name) do |f|
 	f.each do |line|
 	  break if line =~ /^\r?$/
-	  if line[-1,1] != "\n" then line << "\n" end
-	  line.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	  normalize_line
 	  if iterator? then
 	    yield line
 	  else
 	    ret << line
 	  end
 	end
-	yield "\r\n"
+	if iterator? then
+	  yield "\r\n"
+	else
+	  ret << "\r\n"
+	end
 	f.each do |line|
 	  break if lines <= 0
-	  if line[-1,1] != "\n" then line << "\n" end
-	  line.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	  normalize_line
 	  if iterator? then
 	    yield line
 	  else
