@@ -197,6 +197,10 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 [履歴]
 
+0.4.4	2002-07-03
+	・TOP がエラーになるバグを修正
+	・MaildirUseFileSize が未定義になるバグを修正
+
 0.4.3	2002-06-27
 	・大きなメールの処理速度を向上
 
@@ -249,4 +253,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.23 2002/06/27 13:35:05 tommy Exp $
+$Id: README.ja,v 1.24 2002/07/02 17:06:13 tommy Exp $

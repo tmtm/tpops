@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.6 2002/06/27 13:34:00 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.7 2002/07/02 17:06:13 tommy Exp $
 
 class TPOPS
 
@@ -121,7 +121,7 @@ class TPOPS
       File::open(@files[msg-1].name) do |f|
 	f.each do |line|
 	  break if line =~ /^\r?$/
-	  normalize_line
+	  normalize_line line
 	  if iterator? then
 	    yield line
 	  else
@@ -135,7 +135,7 @@ class TPOPS
 	end
 	f.each do |line|
 	  break if lines <= 0
-	  normalize_line
+	  normalize_line line
 	  if iterator? then
 	    yield line
 	  else
