@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.57 2004/06/10 14:14:44 tommy Exp $
+# $Id: tpops,v 1.58 2004/06/10 16:01:36 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -142,7 +142,7 @@ class TPOPS
       end
       File.unlink @pid_file rescue nil if @pid_file
       @pid_file = nil
-      if $conf["pid-file"] then
+      if $conf["pid-file"] and not $conf["pid-file"].empty? then
         File.open($conf["pid-file"], "w") do |f| f.puts $$ end
         @pid_file = $conf["pid-file"]
       end
