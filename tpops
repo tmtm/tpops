@@ -98,12 +98,13 @@ class TPOPS
       ts.max_servers = $max_servers
       ts.max_use = $max_use
       ts.max_idle = $max_idle
-      trap 'HUP' do
+      old_hup_trap = trap 'HUP' do
 	load_config
 	ts.min_servers = $min_servers
 	ts.max_servers = $max_servers
 	ts.max_use = $max_use
 	ts.max_idle = $max_idle
+	old_hup_trap.call
       end
       ts.start do |conn|
 	begin
