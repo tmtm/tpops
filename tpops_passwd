@@ -1,0 +1,57 @@
+#!/usr/local/bin/ruby
+# $Id: tpops_passwd,v 1.1 2004/03/03 07:52:43 tommy Exp $
+#
+# Copyright (C) 2004 TOMITA Masahiro
+# tommy@tmtm.org
+#
+
+require "getopts"
+require "dbm"
+
+def usage()
+  $stderr.puts <<EOS
+Usage: tpops_passwd pwdfile userid passwd
+         add userid and password to pwdfile
+       tpops_passwd -f filename pwdfile
+         add userid and password to pwdfile from filename
+       tpops_passwd -d userid pwdfile
+         delete userid from pwdfile
+       tpops_passwd -l pwdfile
+EOS
+  exit 1
+end
+
+unless getopts("l", "d:", "f:") then
+  usage
+end
+
+usage if ARGV.length == 0
+pwdfile = ARGV.shift
+dbm = DBM.open(pwdfile)
+
+if $OPT_l then
+  usage if ARGV.length != 0
+  dbm.keys.sort.each do |uid|
+    puts "#{uid}\t#{dbm[uid]}"
+  end
+  exit
+end
+
+if $OPT_d then
+  usage if ARGV.length > 0
+  dbm.delete $OPT_d
+  exit
+end
+
+if $OPT_f then
+  usage if ARGV.length > 0
+  file = $OPT_f == "-" ? $stdin : File.open($OPT_f)
+  file.each do |line|
+    uid, pwd = line.chomp.split(/\s+/)
+    dbm[uid] = pwd
+  end
+  exit
+end
+
+usage if ARGV.length != 2
+dbm[ARGV[0]] = ARGV[1]
