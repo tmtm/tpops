@@ -1,24 +1,16 @@
-# $Id: tserver.rb,v 1.21 2004/03/02 12:49:53 tommy Exp $
-#
-# Copyright (C) 2003-2004 TOMITA Masahiro
-# tommy@tmtm.org
-#
+# $Id: tserver.rb,v 1.19.2.1 2004/03/02 10:30:23 tommy Exp $
 
 require "socket"
 require "tempfile"
 
 class TServer
 
-  @@children = []
-  @@already_setup_signal = false
-  @@already_setup_sigchld = false
-
   def initialize(*args)
-    @handle_signal = true
     @min_servers = 5
     @max_servers = 50
     @max_request_per_child = 50
     @max_idle = 100
+    @children = []
     @connections = []
     @exited_pids = []
     if args[0].is_a? BasicSocket then
@@ -32,13 +24,16 @@ class TServer
     f = Tempfile.new(".tserver")
     @lockf = f.path
     f.close
-  end
-
-  def setup_signal_handler()
-    return if @@already_setup_signal
     @old_trap = {}
+    @old_trap["CHLD"] = trap "CHLD" do
+      @children.delete_if do |pid|
+        ret = Process.waitpid(pid, Process::WNOHANG) rescue nil
+        ret
+      end
+      @old_trap["CHLD"].call if @old_trap["CHLD"].is_a? Proc
+    end
     @old_trap["TERM"] = trap "TERM" do
-      terminate
+      @to_child.each_value do |f| f.close rescue nil end
       if @old_trap["TERM"].is_a? Proc then
 	@old_trap["TERM"].call
       else
@@ -46,18 +41,17 @@ class TServer
       end
     end
     @old_trap["HUP"] = trap "HUP" do
-      terminate
+      @to_child.each_value do |f| f.close rescue nil end
       @old_trap["HUP"].call if @old_trap["HUP"].is_a? Proc
     end
     @old_trap["INT"] = trap "INT" do
-      interrupt
+      Process.kill "TERM", *@children rescue nil
       if @old_trap["INT"].is_a? Proc then
 	@old_trap["INT"].call
       else
 	exit
       end
     end
-    @@already_setup_signal = true
   end
 
   def sock()
@@ -70,31 +64,16 @@ class TServer
   alias max_use= max_request_per_child=
   attr_writer :on_child_start, :on_child_exit
 
-  def handle_signal=(f)
-    @handle_signal = f
-  end
-
   def start(&block)
+    @from_child = {}
+    @to_child = {}
     if block == nil then
       raise "block required"
     end
-    setup_signal_handler if @handle_signal
-    unless @@already_setup_sigchld then
-      old_chld_trap = trap "CHLD" do
-        @@children.delete_if do |pid|
-          Process.waitpid(pid, Process::WNOHANG) rescue nil
-        end
-        old_chld_trap.call if old_chld_trap.is_a? Proc
-      end
-      @@already_setup_sigchld = true
-    end
-    @from_child = {}
-    @to_child = {}
     @min_servers.times do
       make_child block
     end
-    @flag = :in_loop
-    while @flag == :in_loop do
+    loop do
       r, = IO.select(@from_child.values, nil, nil, 1)
       if r then
         r.each do |fc|
@@ -111,7 +90,7 @@ class TServer
           end
         end
       end
-      cs = @@children.size
+      cs = @children.size
       if cs < @min_servers then
 	n = @min_servers-cs
       elsif @connections.size >= cs-1 and cs < @max_servers then
@@ -126,35 +105,6 @@ class TServer
 	make_child block
       end
     end
-    @flag = :out_of_loop
-    terminate
-    @from_child.each_value do |p|
-      p.close
-    end
-    @to_child.each_value do |p|
-      p.close
-    end
-  end
-
-  def close()
-    if @flag != :out_of_loop then
-      raise "close() must be call out of start loop"
-    end
-    @socks.each do |s|
-      s.close
-    end
-  end
-
-  def stop()
-    @flag = :exit_loop
-  end
-
-  def terminate()
-    @to_child.each_value do |f| f.close rescue nil end
-  end
-
-  def interrupt()
-    Process.kill "TERM", *@@children rescue nil
   end
 
   private
@@ -185,7 +135,7 @@ class TServer
       to_parent[0].close
       child block
     end
-    @@children << pid
+    @children << pid
     @to_child[pid] = to_child[1]
     @from_child[pid] = to_parent[0]
     to_child[0].close
@@ -193,10 +143,9 @@ class TServer
   end
 
   def child(block)
-    trap "HUP", "SIG_DFL"
-    trap "CHLD", "SIG_DFL"
-    trap "INT", "SIG_DFL"
-    trap "TERM" do exit_child end
+    trap "SIGHUP", "SIG_DFL"
+    trap "SIGCHLD", "SIG_DFL"
+    trap "SIGTERM" do exit_child end
     @on_child_start.call if defined? @on_child_start
     cnt = 0
     lock = File.open(@lockf, "w")
