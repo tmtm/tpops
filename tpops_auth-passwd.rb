@@ -1,23 +1,23 @@
-# $Id: tpops_auth-passwd.rb,v 1.9 2004/03/02 00:04:08 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.10 2004/03/21 13:26:36 tommy Exp $
 
 require 'etc'
 
 class TPOPS
   class Auth
 
-    $passwd_lock_dir = '/var/tmp/tpops' unless defined? $passwd_lock_dir
-
     def Auth::apop?()
       defined? $apop_passwd_file
     end
 
     def initialize(user, pass, apop=nil)
+      $passwd_lock_dir = '/var/run/tpops' unless defined? $passwd_lock_dir and $passwd_lock_dir
+      $maildir = "Maildir" unless defined? $maildir and $maildir
       begin
 	pw = Etc::getpwnam user
       rescue ArgumentError
 	return
       end
-      @login, @uid, @maildir = pw.name, pw.uid, pw.dir+'/Maildir/'
+      @login, @uid, @maildir = pw.name, pw.uid, pw.dir+"/"+$maildir+"/"
       if apop then
         require 'dbm'
 	require 'md5'

@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.9 2002/12/03 16:26:34 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.10 2004/03/21 13:26:36 tommy Exp $
 
 class TPOPS
 
@@ -34,7 +34,7 @@ class TPOPS
     public
     def initialize(uid, maildir)
       files = []
-      [maildir+'cur', maildir+'new'].each do |path|
+      [maildir+'/cur', maildir+'/new'].each do |path|
 	begin
 	  File::stat(path)
 	rescue Errno::ENOENT

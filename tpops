@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.44 2004/03/02 00:04:08 tommy Exp $
+# $Id: tpops,v 1.45 2004/03/21 13:26:35 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -29,39 +29,6 @@ $max_use = 100
 $max_idle = 100
 $pid_file = nil
 
-def load_config()
-  script_dir = File.dirname $0
-  if $OPT_f then
-    load $OPT_f
-  else
-    load script_dir+"/tpops.conf" if File.exist? script_dir+"/tpops.conf"
-  end
-  require script_dir+"/tpops_auth-"+$auth_type.downcase
-  require script_dir+"/tpops_mailbox-"+$mailbox_type.downcase
-  $default_domain = $OPT_domain if $OPT_domain
-  $foreground = $OPT_fg if $OPT_fg
-  $port = $OPT_port.to_i if $OPT_port
-  $debug = $OPT_debug if $OPT_debug
-  $pid_file = $OPT_pidfile if $OPT_pidfile
-  $with_inetd = true if $OPT_inetd
-  $user = $OPT_user if $OPT_user
-  $group = $OPT_group if $OPT_group
-  if $user then
-    if $user.is_a? Integer then
-      $uid = $user
-    else
-      $uid = $user =~ /^\d+$/ ? $user.to_i : Etc.getpwnam($user).uid
-    end
-  end
-  if $group then
-    if $group.is_a? Integer then
-      $gid = $group
-    else
-      $gid = $group =~ /^\d+$/ ? $group.to_i : Etc.getgrnam($group).gid
-    end
-  end
-end
-
 def log_debug(str)
   Syslog.debug("%s", str) if $syslog_facility and $debug
 end
@@ -84,6 +51,9 @@ end
 
 class TPOPS
 
+  class Error < StandardError
+  end
+
   def initialize()
     at_exit do
       File.unlink $old_pid_file rescue nil if $old_pid_file
@@ -91,10 +61,6 @@ class TPOPS
     ts = nil
     loop do
       load_config
-      if $syslog_facility then
-        Syslog.close if Syslog.opened?
-        Syslog.open(File.basename($0), nil, $syslog_facility)
-      end
       call_by_inetd if $with_inetd
 
       if $port != $old_port then
@@ -151,6 +117,9 @@ class TPOPS
       ts.start do |conn|
         begin
           Conn.new conn
+        rescue TPOPS::Error
+          log_err $!.to_s
+          exit 1
         rescue
           log_err $!.to_s
           $stderr.puts Time.now.inspect
@@ -170,6 +139,8 @@ class TPOPS
       Process.euid = $uid if $uid
       Process.gid = $gid if $gid
       Conn.new(Socket.for_fd($stdin.fileno))
+    rescue TPOPS::Error
+      log_err $!.to_s
     rescue
       log_err $!.to_s
       $stderr.puts Time.now.inspect
@@ -177,6 +148,43 @@ class TPOPS
       raise
     end
     exit
+  end
+
+  def load_config()
+    script_dir = File.dirname $0
+    if $OPT_f then
+      load $OPT_f
+    else
+      load script_dir+"/tpops.conf" if File.exist? script_dir+"/tpops.conf"
+    end
+    require script_dir+"/tpops_auth-"+$auth_type.downcase
+    require script_dir+"/tpops_mailbox-"+$mailbox_type.downcase
+    $default_domain = $OPT_domain if $OPT_domain
+    $foreground = $OPT_fg if $OPT_fg
+    $port = $OPT_port.to_i if $OPT_port
+    $debug = $OPT_debug if $OPT_debug
+    $pid_file = $OPT_pidfile if $OPT_pidfile
+    $with_inetd = true if $OPT_inetd
+    $user = $OPT_user if $OPT_user
+    $group = $OPT_group if $OPT_group
+    if $user then
+      if $user.is_a? Integer then
+        $uid = $user
+      else
+        $uid = $user =~ /^\d+$/ ? $user.to_i : Etc.getpwnam($user).uid
+      end
+    end
+    if $group then
+      if $group.is_a? Integer then
+        $gid = $group
+      else
+        $gid = $group =~ /^\d+$/ ? $group.to_i : Etc.getgrnam($group).gid
+      end
+    end
+    if $syslog_facility then
+      Syslog.close if Syslog.opened?
+      Syslog.open(File.basename($0), nil, $syslog_facility)
+    end
   end
 
   class Conn
@@ -194,22 +202,30 @@ class TPOPS
 	@connect_time = t
       end
 
-      def @sock.gets_limit()
+      def @sock.gets()
 	ret = ""
 	loop do
 	  if IO.select([self], nil, nil, $command_timeout) == nil then
-	    raise "Command timeout"
+	    raise TPOPS::Error, "Command timeout"
 	  end
 	  if Time.now.to_i - @connect_time > $connection_keep_time then
-	    raise "Connection time exceeded"
+	    raise TPOPS::Error, "Connection time exceeded"
 	  end
 	  chr = getc
 	  break if chr == nil
 	  ret << chr
 	  break if chr == ?\n
-	  raise "line exceed 1024 bytes" if ret.length >= 1024
+	  raise TPOPS::Error, "line exceed 1024 bytes" if ret.length >= 1024
 	end
 	ret == "" ? nil : ret
+      end
+
+      def @sock.write(str)
+        begin
+          super str
+        rescue
+          raise TPOPS::Error, $!.to_s
+        end
       end
 
       @sock.connect_time = Time.now.to_i
@@ -217,7 +233,7 @@ class TPOPS
       begin
 	catch :disconnect do
 	  loop do
-	    r = @sock.gets_limit
+	    r = @sock.gets
 	    if not r then break end
 	    r = r.chomp.sub(/\r$/, "")
 	    log_debug "< #{r}"
@@ -260,12 +276,12 @@ class TPOPS
 
     def err(arg=nil)
       sleep $error_interval
-      @sock.write(if arg then "-ERR #{arg}\r\n" else "-ERR\r\n" end)
+      @sock.write(arg ? "-ERR #{arg}\r\n" : "-ERR\r\n")
       log_debug "> -ERR #{arg}"
     end
 
     def ok(arg=nil)
-      @sock.write(if arg then "+OK #{arg}\r\n" else "+OK\r\n" end)
+      @sock.write(arg ? "+OK #{arg}\r\n" : "+OK\r\n")
       log_debug "> +OK #{arg}"
     end
 
@@ -516,7 +532,7 @@ class TPOPS
 end
 
 unless getopts(nil, "f:", "domain:", "fg", "port:", "debug", "version", "inetd", "user:", "group:", "pidfile:") then
-  raise "unknown options"
+  raise TPOPS::Error, "unknown options"
 end
 if $OPT_version then
   puts "TPOPS version #{$version}"

@@ -1,4 +1,4 @@
-# $Id: tpops.conf.sample,v 1.9 2003/01/23 22:33:21 tommy Exp $
+# $Id: tpops.conf.sample,v 1.10 2004/03/21 13:26:36 tommy Exp $
 
 $port = 110
 $hostname = `uname -n`.chomp
@@ -19,7 +19,8 @@ $max_idle = 100
 $maildir_extended = true
 $maildir_use_filesize = true
 
-$passwd_lock_dir = '/var/tmp/tpops'
+$passwd_lock_dir = '/var/run/tpops'
+$maildir = 'Maildir'
 $apop_passwd_file = nil		# '/etc/tpops-apoppw'
 
 $mysql_server = nil		# 'localhost'

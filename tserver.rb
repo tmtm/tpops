@@ -1,4 +1,4 @@
-# $Id: tserver.rb,v 1.21 2004/03/02 12:49:53 tommy Exp $
+# $Id: tserver.rb,v 1.23 2004/03/21 13:14:00 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -9,7 +9,76 @@ require "tempfile"
 
 class TServer
 
-  @@children = []
+  class Children < Array
+    def fds()
+      self.map{|c| c.active? ? c.from : nil}.compact.flatten
+    end
+
+    def pids()
+      self.map{|c| c.pid}
+    end
+
+    def active()
+      self.map{|c| c.active? ? c : nil}.compact
+    end
+
+    def idle()
+      self.map{|c| c.idle? ? c :  nil}.compact
+    end
+
+    def by_fd(fd)
+      self.each do |c|
+        return c if c.from == fd
+      end
+      nil
+    end
+
+    def cleanup()
+      new = Children.new
+      self.each do |c|
+        new << c unless c.exit
+      end
+      self.replace new
+    end
+  end
+
+  class Child
+    def initialize(pid, from, to)
+      @pid, @from, @to = pid, from, to
+      @status = :new
+      @exit = false
+    end
+    # status is one of :new, :idle, :connect, :close
+
+    attr_accessor :pid, :from, :to, :exit
+
+    def event(s)
+      case s
+      when "connect" then @status = :connect
+      when "disconnect" then @status = :idle
+      when "close" then @status = :close
+      else
+        $stderr.puts "unknown status: #{s}"
+      end
+    end
+
+    def close()
+      @from.close unless @from.closed?
+      @to.close unless @to.closed?
+      @status = :close
+    end
+
+    def idle?()
+      @status == :new or @status == :idle
+    end
+
+    def active?()
+      @exit == false and (@status == :new or @status == :idle or @status == :connect)
+    end
+
+  end
+
+  @@children = Children.new
   @@already_setup_signal = false
   @@already_setup_sigchld = false
 
@@ -19,8 +88,6 @@ class TServer
     @max_servers = 50
     @max_request_per_child = 50
     @max_idle = 100
-    @connections = []
-    @exited_pids = []
     if args[0].is_a? BasicSocket then
       args.each do |s|
 	raise "Socket required" unless s.is_a? BasicSocket
@@ -64,15 +131,26 @@ class TServer
     @socks[0]
   end
 
+  def on_child_start(&block)
+    if block == nil then
+      raise "block required"
+    end
+    @on_child_start = block
+  end
+
+  def on_child_exit(&block)
+    if block == nil then
+      raise "block required"
+    end
+    @on_child_exit = block
+  end
+
   attr_reader :socks
   attr_accessor :min_servers, :max_servers, :max_request_per_child, :max_idle
   alias max_use max_request_per_child
   alias max_use= max_request_per_child=
   attr_writer :on_child_start, :on_child_exit
-
-  def handle_signal=(f)
-    @handle_signal = f
-  end
+  attr_accessor :handle_signal
 
   def start(&block)
     if block == nil then
@@ -81,46 +159,41 @@ class TServer
     setup_signal_handler if @handle_signal
     unless @@already_setup_sigchld then
       old_chld_trap = trap "CHLD" do
-        @@children.delete_if do |pid|
-          Process.waitpid(pid, Process::WNOHANG) rescue nil
+        @@children.active.each do |c|
+          Process.waitpid(c.pid, Process::WNOHANG) rescue nil
         end
         old_chld_trap.call if old_chld_trap.is_a? Proc
       end
       @@already_setup_sigchld = true
     end
-    @from_child = {}
-    @to_child = {}
-    @min_servers.times do
+    (@min_servers-@@children.size).times do
       make_child block
     end
     @flag = :in_loop
     while @flag == :in_loop do
-      r, = IO.select(@from_child.values, nil, nil, 1)
+      r, = IO.select(@@children.fds, nil, nil, nil)
       if r then
-        r.each do |fc|
-          pid = @from_child.invert[fc]
-          l = fc.gets
+        r.each do |f|
+          c = @@children.by_fd f
+          l = f.gets
           if l then
-            from_child pid, l.chomp
+            c.event l.chomp
           else
-            @connections.delete pid
-            @to_child[pid].close rescue nil
-            @to_child.delete pid
-            @from_child[pid].close rescue nil
-            @from_child.delete pid
+            c.exit = true
           end
         end
       end
-      cs = @@children.size
-      if cs < @min_servers then
-	n = @min_servers-cs
-      elsif @connections.size >= cs-1 and cs < @max_servers then
-	n = @connections.size - cs + 2
-	if cs + n > @max_servers then
-	  n = @max_servers - cs
-	end
+      @@children.cleanup
+      n = 0
+      if @@children.size < @min_servers then
+        n = @min_servers - @@children.size
       else
-	n = 0
+        if @@children.idle.size <= 2 then
+          n = 2
+        end
+      end
+      if @@children.size + n > @max_servers then
+        n = @max_servers - @@children.size
       end
       n.times do
 	make_child block
@@ -128,17 +201,11 @@ class TServer
     end
     @flag = :out_of_loop
     terminate
-    @from_child.each_value do |p|
-      p.close
-    end
-    @to_child.each_value do |p|
-      p.close
-    end
   end
 
   def close()
     if @flag != :out_of_loop then
-      raise "close() must be call out of start loop"
+      raise "close() must be called out of start() loop"
     end
     @socks.each do |s|
       s.close
@@ -150,23 +217,16 @@ class TServer
   end
 
   def terminate()
-    @to_child.each_value do |f| f.close rescue nil end
+    @@children.each do |c|
+      c.to.close unless c.to.closed?
+    end
   end
 
   def interrupt()
-    Process.kill "TERM", *@@children rescue nil
+    Process.kill "TERM", *(@@children.pids) rescue nil
   end
 
   private
-
-  def from_child(pid, str)
-    case str
-    when "connect"
-      @connections << pid
-    when "disconnect"
-      @connections.delete pid
-    end
-  end
 
   def exit_child()
     @on_child_exit.call if defined? @on_child_exit
@@ -177,17 +237,14 @@ class TServer
     to_child = IO.pipe
     to_parent = IO.pipe
     pid = fork do
-      @to_child.each_value do |f| f.close rescue nil end
-      @from_child.each_value do |f| f.close rescue nil end
+      @@children.map{|c| c.close}
       @from_parent = to_child[0]
       @to_parent = to_parent[1]
       to_child[1].close
       to_parent[0].close
       child block
     end
-    @@children << pid
-    @to_child[pid] = to_child[1]
-    @from_child[pid] = to_parent[0]
+    @@children << Child.new(pid, to_parent[0], to_child[1])
     to_child[0].close
     to_parent[1].close
   end
@@ -215,10 +272,10 @@ class TServer
       end
       s = r[0].accept
       lock.flock(File::LOCK_UN)
-      @to_parent.puts "connect"
+      @to_parent.syswrite "connect\n"
       block.call(s)
       s.close unless s.closed?
-      @to_parent.puts "disconnect" rescue nil
+      @to_parent.syswrite "disconnect\n" rescue nil
       cnt += 1
       last_connect = Time.now
     end
