@@ -1,4 +1,4 @@
-# $Id: tpops_maildir.rb,v 1.4 2001/07/11 15:53:23 tommy Exp $
+# $Id: tpops_maildir.rb,v 1.5 2001/07/16 09:38:47 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -165,7 +165,7 @@ class TPOPS
   def commit()
     @deleted.each do |i|
       f = @files[i-1].name
-      File::rename f, File::dirname(f)+'/.'+File::basename(f)
+      File::unlink f
     end
   end
 
