@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-pipe,v 1.1 2001/07/11 14:53:33 tommy Exp $
+# $Id: tpops-pipe,v 1.2 2001/07/11 16:06:26 tommy Exp $
 
 require 'mysql'
 
@@ -21,7 +21,7 @@ def store(msg)
   msg.gsub!(/\r\n/, "\n")
   size = msg.gsub(/\n/, "\r\n").size
   r = @my.query("select sum(size) from msg where uid=#{@uid}").fetch_row[0]
-  if r and r.to_i + size > @quota then
+  if r and @quota > 0 and r.to_i + size > @quota then
     $stderr.puts "quota limit exceeded"
     exit EX_CANTCREAT
   end
