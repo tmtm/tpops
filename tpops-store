@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-store,v 1.5 2001/05/19 22:47:33 tommy Exp $
+# $Id: tpops-store,v 1.6 2001/05/19 23:40:45 tommy Exp $
 
 require 'mysql'
 
@@ -54,9 +54,9 @@ begin
 
   @my.close
 
-rescue Exception
+rescue
   bt = $!.backtrace
-  $stderr.puts "#{bt.shift}: #{$!.error} (#{$!.type})"
+  $stderr.puts "#{bt.shift}: #{$!.message} (#{$!.type})"
   bt.each do |l|
     $stderr.puts "\tfrom #{l}"
   end
