@@ -1,0 +1,42 @@
+#!/usr/local/bin/ruby
+# $Id: tpops-store,v 1.1 2001/05/06 14:48:33 tommy Exp $
+
+require 'mysql'
+
+MySQL_Server = 'localhost'
+MySQL_User = 'root'
+MySQL_Pass = 'fuga'
+MySQL_DB = 'tpops'
+
+if ARGV.size < 1 then
+  $stderr.puts "usage: tpops-store mail_address [files...]"
+  exit 1
+end
+
+mail = ARGV.shift
+@my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
+res = @my.query("select uid from user where mail='#{@my.quote mail}'")
+if res.num_rows == 0 then
+  puts "#{mail}: unknown address"
+  exit 1
+end
+@uid = res.fetch_row[0].to_i
+
+def store(msg)
+  i = msg.index("\r\n\r\n") + 4
+  h = msg[0, i]
+  b = msg[i..-1]
+  @my.query("insert into msg (uid,header,body,timestamp) values (#{@uid},'#{@my.quote h}','#{@my.quote b}',now())")
+end
+
+if ARGV.size == 0 then
+  store $stdin.read
+else
+  ARGV.each do |fname|
+    File::open(fname) do |f|
+      store f.read
+    end
+  end
+end
+
+@my.close

@@ -1,0 +1,288 @@
+#!/usr/local/bin/ruby
+# $Id: tpops,v 1.1 2001/05/06 14:48:33 tommy Exp $
+
+require 'socket'
+load 'tpops_sub.rb'
+
+#Port = 110
+Port = 11000
+
+Hostname = `uname -n`.chomp
+
+ConnectionKeepTime = 60*60	# 1 hour
+
+class TPOPS
+
+  def initialize()
+    trap "CHLD", nil		# ignore child process's status
+    sock = TCPServer::new(Port)
+    loop do
+      conn = sock.accept
+      fork do
+	sock.close
+	connection(conn)
+      end
+      conn.close
+    end
+  end
+
+  def connection(sock)
+    @sock = sock
+    @status = :AUTHORIZATION
+    @user = nil
+    @apopkey = "<#{$$}.#{Time::now.to_i}@#{Hostname}>"
+
+    @sock.write "+OK TPOPS ready. #{@apopkey}\r\n"
+    while r = @sock.gets
+      r = r.chomp.sub(/\r$/, '')
+      comm = r.split
+      if comm.size == 0 then next end
+      case @status
+      when :AUTHORIZATION
+	case comm[0].upcase
+	when 'QUIT';	comm_auth_quit comm[1..-1]
+	when 'USER';	comm_user comm[1..-1]
+	when 'PASS';	comm_pass r.split(' ', 2)[1,1]
+	when 'APOP';	comm_apop comm[1..-1]
+	else
+	  err 'invalid command'
+	end
+      when :TRANSACTION
+	case comm[0].upcase
+	when 'STAT';	comm_stat comm[1..-1]
+	when 'LIST';	comm_list comm[1..-1]
+	when 'RETR';	comm_retr comm[1..-1]
+	when 'DELE';	comm_dele comm[1..-1]
+	when 'NOOP';	comm_noop comm[1..-1]
+	when 'RSET';	comm_rset comm[1..-1]
+	when 'TOP';	comm_top comm[1..-1]
+	when 'UIDL';	comm_uidl comm[1..-1]
+	when 'QUIT';	comm_quit comm[1..-1]
+	else
+	  err 'invalid command'
+	end
+      end
+    end
+    exit
+  end
+
+  def err(arg=nil)
+    @sock.write(if arg then "-ERR #{arg}\r\n" else "-ERR\r\n" end)
+  end
+
+  def ok(arg=nil)
+    @sock.write(if arg then "+OK #{arg}\r\n" else "+OK\r\n" end)
+  end
+
+  def comm_auth_quit(arg)
+    if arg.size != 0 then
+      err 'too many arguments'
+      return
+    end
+    ok 'server signing off'
+    exit
+  end
+
+  def comm_user(arg)
+    if @user then
+      err 'invalid command'
+      return
+    end
+    if arg.size != 1 then
+      err 'too few/many arguments'
+      return
+    end
+    ok 'password requred'
+    @user = arg[0]
+  end
+
+  def comm_pass(arg)
+    if not @user then
+      err 'invalid command'
+      return
+    end
+    if arg.size != 1 then
+      err 'too few/many arguments'
+      return
+    end
+    if auth(@user, arg[0]) then
+      to_transaction
+      msgs, size = stat
+      ok "#{@user} has #{msgs} messages (#{size} octets)"
+    else
+      sleep 5
+      err 'authentication failed'
+      exit
+    end
+  end
+
+  def comm_apop(arg)
+    if @user then
+      err 'invalid command'
+      return
+    end
+    if arg.size != 2 then
+      err 'too few/many arguments'
+      return
+    end
+    if apop_auth(arg[0], arg[1]) then
+      @user = arg[0]
+      to_transaction
+      msgs, size = stat
+      ok "#{@user} has #{msgs} messages (#{size} octets)"
+    else
+      sleep 5
+      err 'authentication failed'
+      exit
+    end
+  end  
+
+  def to_transaction()
+    reset_msgno
+    if not lock then
+      err "cannot lock for #{@user}"
+      exit
+    end
+    at_exit do
+      unlock()
+    end
+    Thread::new do
+      sleep ConnectionKeepTime
+      exit
+    end
+    @status = :TRANSACTION
+  end
+
+  def comm_stat(arg)
+    if arg.size != 0 then
+      err 'too many arguments'
+      return
+    end
+    n, m = stat
+    ok "#{n} #{m}"
+  end
+
+  def comm_list(arg)
+    if arg.size == 0 then
+      n, m = stat
+      ok "#{n} messages (#{m} octets)"
+      list_all.each do |n, m|
+	@sock.write "#{n} #{m}\r\n"
+      end
+      @sock.write ".\r\n"
+    elsif arg.size == 1 then
+      n, m = list(arg[0].to_i)
+      if n then
+	ok "#{n} #{m}"
+      else
+	err 'no such message'
+      end
+    else
+      err 'too many arguments'
+    end
+  end
+
+  def comm_retr(arg)
+    if arg.size != 1 then
+      err 'too few/many arguments'
+      return
+    end
+    msg = retr(arg[0].to_i)
+    if not msg then
+      err 'no such message'
+      return
+    end
+    ok "#{msg.size} octets"
+    msg.each do |line|
+      if line[0] == ?. then line[0,0] = '.' end
+      @sock.write line
+    end
+    if msg[-2..-1] != "\r\n"
+      @sock.write "\r\n"
+    end
+    @sock.write ".\r\n"
+  end
+
+  def comm_dele(arg)
+    if arg.size != 1 then
+      err 'too few/many arguments'
+      return
+    end
+    if dele(arg[0].to_i) then
+      ok 'message deleted'
+    else
+      err 'no such message'
+    end
+  end
+
+  def comm_noop(arg)
+    if arg.size != 0 then
+      err 'too many arguments'
+      return
+    end
+    ok
+  end
+
+  def comm_rset(arg)
+    if arg.size != 0 then
+      err 'too many arguments'
+      return
+    end
+    rset
+    ok
+  end
+
+  def comm_top(arg)
+    if arg.size != 2 then
+      err 'too few/many arguments'
+      return
+    end
+    msg = top arg[0].to_i, arg[1].to_i
+    if not msg then
+      err 'no such message'
+      return
+    end
+    ok
+    msg.each do |line|
+      if line[0] == ?. then line[0,0] = '.' end
+      @sock.write line
+    end
+    if msg[-2..-1] != "\r\n"
+      @sock.write "\r\n"
+    end
+    @sock.write ".\r\n"
+  end
+
+  def comm_uidl(arg)
+    if arg.size == 0 then
+      ok
+      uidl_all.each do |m, id|
+	@sock.write "#{m} #{id}\r\n"
+      end
+      @sock.write ".\r\n"
+    elsif arg.size == 1 then
+      m, id = uidl(arg[0].to_i)
+      if m then
+	ok "#{m} #{id}"
+      else
+	err 'no such message'
+      end
+    else
+      err 'too many arguments'
+    end
+  end
+
+  def comm_quit(arg)
+    if arg.size != 0 then
+      err 'too many arguments'
+      return
+    end
+    commit
+    ok 'server signing off'
+    exit
+  end
+
+end
+
+TPOPS::new
+

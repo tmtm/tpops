@@ -1,0 +1,20 @@
+#!/usr/local/bin/ruby
+# $Id: tpops-useradd,v 1.1 2001/05/06 14:48:33 tommy Exp $
+
+require 'mysql'
+
+MySQL_Server = 'localhost'
+MySQL_User = 'root'
+MySQL_Pass = 'fuga'
+MySQL_DB = 'tpops'
+
+if ARGV.size != 3 then
+  $stderr.puts "usage: tpops-useradd login passwd mail_address"
+  exit 1
+end
+
+login, passwd, mail = ARGV
+
+my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
+my.query("insert into user (login,passwd,mail) values ('#{my.quote login}','#{my.quote passwd}','#{my.quote mail}')")
+my.close
