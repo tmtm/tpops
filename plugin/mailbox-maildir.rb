@@ -1,9 +1,10 @@
-# $Id: mailbox-maildir.rb,v 1.6 2004/06/10 14:14:44 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.7 2004/06/29 23:28:14 tommy Exp $
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
   "maildir-extended"		=> [/^(yes|no)$/i, "yes"],
   "maildir-lock"		=> [/^(yes|no)$/i, "yes"],
+  "maildir-new2cur"		=> [/^(yes|no)$/i, "yes"],
 })
 
 class TPOPS
@@ -14,9 +15,10 @@ class TPOPS
       @deleted = false
       @seen = false
       @info = ""
+      @in_new = nil
     end
     attr_reader :name, :size, :mtime
-    attr_accessor :seen, :info
+    attr_accessor :seen, :info, :in_new
     def deleted?() @deleted end
     def delete() @deleted = true end
     def undelete() @deleted = false end
@@ -44,37 +46,43 @@ class TPOPS
       if line[-2] != ?\r then line[-1,0] = "\r" end
     end
 
+    def read_maildir(dir, in_new=false)
+      ret = []
+      Dir.foreach(dir) do |f|
+        if f =~ /^(\d+)\./ then
+          mtime = $1.to_i
+          p = "#{dir}/#{f}"
+          if $conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
+            size = $1.to_i
+          elsif $conf["maildir-use-filesize"] == "yes" then
+            s = File.stat(p)
+            size = s.size
+          else
+            r = File.open(p) do |f| f.read end
+            size = r.size + r.count("\n")	# "\n" -> "\r\n"
+          end
+          file = FileStat.new(p, size, mtime)
+          file.info = p =~ /:2,(\w+)$/ ? $1 : ""
+          file.in_new = in_new
+          ret << file
+        end
+      end
+      ret
+    end
+
     public
     def initialize(maildir)
       lock(maildir)
-      if File.directory? "#{maildir}/new" then
+      if $conf["maildir-new2cur"] == "yes" and File.directory? "#{maildir}/new" then
         Dir.foreach("#{maildir}/new") do |f|
           if f =~ /^(\d+)\./ then
             File.rename("#{maildir}/new/#{f}", "#{maildir}/cur/#{File.basename(f)}:2,")
           end
         end
       end
-      files = []
-      if File.directory? "#{maildir}/cur" then
-        Dir.foreach("#{maildir}/cur") do |f|
-          if f =~ /^(\d+)\./ then
-            mtime = $1.to_i
-            p = "#{maildir}/cur/#{f}"
-            if $conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
-              size = $1.to_i
-            elsif $conf["maildir-use-filesize"] == "yes" then
-              s = File.stat(p)
-              size = s.size
-            else
-              r = File.open(p) do |f| f.read end
-              size = r.gsub(/\n/, "\r\n").size
-            end
-            file = FileStat.new(p, size, mtime)
-            file.info = p =~ /:2,(\w+)$/ ? $1 : ""
-            files << file
-          end
-        end
-      end
+
+      files = read_maildir("#{maildir}/cur")
+      files.concat read_maildir("#{maildir}/new", true) if $conf["maildir-new2cur"] != "yes"
       files.sort! do |a, b|
         a.mtime <=> b.mtime
       end
@@ -238,7 +246,7 @@ class TPOPS
       @files.values.each do |f|
         if f.deleted? then
           f.real_delete
-        elsif f.seen and not f.info.include? "S" then
+        elsif not f.in_new and f.seen and not f.info.include? "S" then
           f.info = (f.info + "S").split(//).sort.join
           File.rename(f.name, f.name.split(/:/)[0]+":2,"+f.info)
         end
