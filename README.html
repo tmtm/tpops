@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.6.1.tar.gz">tpops-0.6.1.tar.gz</a>
       <li><a href="tpops-0.6.tar.gz">tpops-0.6.tar.gz</a>
       <li><a href="tpops-0.5.4.tar.gz">tpops-0.5.4.tar.gz</a>
       <li><a href="tpops-0.5.3a.tar.gz">tpops-0.5.3a.tar.gz</a>
@@ -53,8 +54,8 @@
     <h2>必要なもの</h2>
     <ul>
       <li><a href="http://www.ruby-lang.org">Ruby 1.8.1</a>
-      <li><a href="http://www.mysql.com">MySQL 3.23.x</a> (MySQL 認証を使用する場合)
-      <li><a href="/ruby/mysql/">Ruby/MySQL 0.2.4</a> (MySQL 認証を使用する場合)
+      <li><a href="http://www.mysql.com">MySQL 3.23.x or 4.0.x</a> (MySQL 認証を使用する場合)
+      <li><a href="http://tmtm.org/ja/ruby/mysql/">Ruby/MySQL 0.2.4</a> (MySQL 認証を使用する場合)
     </ul>
 
     <h2>インストール</h2>
@@ -63,9 +64,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.6.tar.gz
-# chown -R root:root tpops-0.6
-# ln -s tpops-0.6 tpops
+# tar xpfvz /tmp/tpops-0.6.1.tar.gz
+# chown -R root:root tpops-0.6.1
+# ln -s tpops-0.6.1 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -182,7 +183,7 @@
 	      <td>mysql-user<td>なし
 	      <td>MySQLログインユーザ名。
 	    <tr>
-	      <td>mysql-pass<td>なし
+	      <td>mysql-passwd<td>なし
 	      <td>MySQLログインパスワード。
 	    <tr>
 	      <td>mysql-db<td>なし
@@ -193,6 +194,25 @@
 	      <td>
 		ログイン名,パスワード,Maildir を取り出すためのクエリ文字列。
 		「%s」はクライアントから渡されたログイン名に置き換えられます。
+	    <tr>
+	      <td>mysql-crypt-passwd<td>no
+	      <td>
+		データベースから取り出したパスワード文字列が暗号化されている場合、暗号化方式を指定します。
+		no 以外の値が設定されている場合は、APOP 認証はできません。
+		有効な値は、次の通りです。
+		<table frame="box" rules="all" summary="mysql-crypt-passwd values">
+		    <tr>
+		      <th>値<th>意味
+		    <tr>
+		      <td>no<td>平文パスワード。
+		    <tr>
+		      <td>yes<td>crypt, sha の順に試す。
+		    <tr>
+		      <td>crypt<td>OS の crypt() で暗号化されたパスワード
+		    <tr>
+		      <td>sha<td>SHA-1 で暗号化されたパスワード。
+			パスワード文字列の先頭に "{SHA}" がある場合は無視します。
+		</table>
 	</table>
 
       <li>auth_type = mysql の場合
@@ -321,6 +341,14 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.6.1
+      <dd>
+	<ul>
+	  <li>BUGFIX: Maildir が存在しない場合に無限ループになる。
+	  <li>new から cur の移動は、QUIT時に既読メールのみ行なうようにした。
+	  <li>mysql-crypt-passwd パラメータの導入。
+	</ul>
+
       <dt>0.6 2004-06-11
       <dd>
 	<ul>
@@ -505,7 +533,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Fri Jun 11 11:22:54 JST 2004
+Last modified: Thu Jul 15 21:53:21 JST 2004
 <!-- hhmts end -->
     </p>
   </body>
