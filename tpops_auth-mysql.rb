@@ -1,4 +1,4 @@
-# $Id: tpops_auth-mysql.rb,v 1.3 2002/11/07 03:20:11 tommy Exp $
+# $Id: tpops_auth-mysql.rb,v 1.4 2002/12/03 16:26:34 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -6,16 +6,22 @@ require 'md5'
 class TPOPS
   class Auth
 
-    MySQLAuthQuery = 'select login,passwd,uid,maildir from user where login="%s"' unless defined? MySQLAuthQuery
+    @@my = nil
+    $mysql_auth_query = 'select login,passwd,uid,maildir from user where login="%s"' unless defined? $mysql_auth_query
 
     def Auth::apop?()
       true
     end
 
+    def my()
+      if @@my == nil then
+	@@my = Mysql::new($mysql_server, $mysql_user, $mysql_pass, $mysql_db)
+      end
+      @@my
+    end
+
     def initialize(user, pass, apop=nil)
-      m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-      res = m.query(sprintf(MySQLAuthQuery, m.quote user))
-      m.close
+      res = my.query(sprintf($mysql_auth_query, my.quote user))
       return if res.num_rows == 0
       login, pw, uid, maildir = res.fetch_row
       if not apop then
@@ -31,36 +37,37 @@ class TPOPS
       @authorized
     end
 
+    def locked?()
+      @locked
+    end
+
     attr_reader :login, :uid, :maildir
 
     def lock()
-      m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-      begin
-	m.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{ConnectionKeepTime}")
-	pid, = m.query("select pid from locks where uid='#{m.quote @uid}'").fetch_row
-	if pid then
-	  begin
-	    Process::kill 0, pid.to_i
-	  rescue Errno::ESRCH
-	    m.query("delete from locks where uid='#{m.quote @uid}'")
-	  rescue
-	  end
-	end
-
-	m.query("insert ignore into locks (uid,pid) values ('#{@uid}','#{$$}')")
-	if m.affected_rows == 0 then
+      my.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{$connection_keep_time}")
+      pid, host = my.query("select pid,host from locks where uid='#{my.quote @uid}'").fetch_row
+      if pid and host == $hostname then
+	begin
+	  Process::kill 0, pid.to_i
+	  return false
+	rescue Errno::ESRCH
+	  my.query("delete from locks where uid='#{my.quote @uid}'")
+	rescue
 	  return false
 	end
-      ensure
-	m.close
       end
+
+      my.query("insert ignore into locks (uid,pid,host) values ('#{my.quote @uid}','#{$$}','#{my.quote $hostname}')")
+      if my.affected_rows == 0 then
+	return false
+      end
+      @locked = true
       true
     end
 
     def unlock()
-      m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-      m.query("delete from locks where uid='#{@uid}'")
-      m.close
+      my.query("delete from locks where uid='#{my.quote @uid}'")
+      @locked = false
     end
 
   end

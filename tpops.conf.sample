@@ -1,38 +1,35 @@
-# $Id: tpops.conf.sample,v 1.6 2002/11/19 16:11:11 tommy Exp $
+# $Id: tpops.conf.sample,v 1.7 2002/12/03 16:26:34 tommy Exp $
 
-#Port = 110
-#Hostname = 'yourhost'
-#ConnectionKeepTime = 60*60		# 1 hour
-#CommandTimeout = 5*60			# 5 minutes
-#WithInetd = true			# set true if using with inetd
-#LogFile = '/var/log/tpops.log'		# default no logging
-#ErrorFile = '/var/log/tpops.err'	# used when WithInetd is true
-#SyslogFacility = Syslog::LOG_MAIL	# default nil (don't use syslog)
+$port = 110
+$hostname = `uname -n`.chomp
+$connection_keep_time = 60*60
+$command_timeout = 10*60
+$with_inetd = false
+$access_log = nil	# '/var/log/tpops.log'
+$error_log = nil	# '/var/log/tpops.err'
+$syslog_facility = Syslog::LOG_MAIL
 
-#AuthType = 'Passwd'		# 'Passwd' or 'MySQL'
-#MailboxType = 'Maildir'	# 'Maildir' or 'MySQL'
-#MaildirUseFileSize = false
-#MaildirExtended = false	# Maildir++ format support
-#PasswdLockDir = '/var/tmp/tpops'
-#APOPPasswdFile = '/etc/tpops-apoppw'
+$auth_type = 'Passwd'
+$error_interval = 5
+$min_servers = 5
+$max_servers = 50
+$max_use = 100
+$max_idle = 100
+$maildir_extended = true
+$maildir_use_filesize = true
 
-# if you use MySQL, set these parameters
-#
-#MySQL_Server = 'localhost'	# server that mysqld running
-#MySQL_User = 'user'		# username to connect mysqld
-#MySQL_Pass = 'passwd'		# password to connect mysqld
-#MySQL_DB = 'tpops'		# database used by TPOPS
-#
-#MySQLAuthQuery = "select login,passwd,uid,maildir from user where login='%s'"
+$passwd_lock_dir = '/var/tmp/tpops'
+$apop_passwd_file = nil		# '/etc/tpops-apoppw'
 
-#------------------------
-# If you want POP_before_SMTP feature, then enable following lines.
-# and run popb4smtp-clean.
-# And make your smtp server to check tpops.pbs MySQL table.
-# 
+$mysql_server = nil		# 'localhost'
+$mysql_user = nil		# 'user'
+$mysql_pass = nil		# 'passwd'
+$mysql_db = nil			# 'tpops'
+
+$mysql_auth_query = "select login,passwd,uid,maildir from user where login='%s'"
 #class TPOPS
 #  def after_auth_hook(sock, auth, mailbox)
-#    m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
+#    m = Mysql::new($mysql_server, $mysql_user, $mysql_pass, $mysql_db)
 #    m.query("replace into pbs (ip) values ('#{m.quote sock_to_addr sock}')")
 #    m.close
 #  end

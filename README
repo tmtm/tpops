@@ -6,7 +6,7 @@ message can be controled by MySQL table.
 
 [Requirement]
 
-  Ruby 1.6.x
+  Ruby 1.6.7
 	http://www.ruby-lang.org
 
   ruby-shadow 1.4.x	needed if using shadow password.
@@ -27,75 +27,168 @@ message can be controled by MySQL table.
 
    ex)
 	# cd /usr/local
-	# tar xpvfz /tmp/tpops-0.4.8.tar.gz
-	# chown -R root:root tpops-0.4.8
-	# ln -s tpops-0.4.8 tpops
+	# tar xpvfz /tmp/tpops-0.5.0.tar.gz
+	# chown -R root:root tpops-0.5.0
+	# ln -s tpops-0.5.0 tpops
 
 2. make tpops.conf. The example and default value are in
    tpops.conf.sample.
 
-    Port:		port number
-    Hostname:		my hostname
-    ConnectionKeepTime:	maximum connection keep time
-    CommandTimeout:	maximum time waiting command
-    WithInetd:		set true if using inetd
-    LogFile:		log filename (default: not logging)
-    ErrorFile:		error file (using if WithInetd = true)
-    SyslogFacility:	syslog facility (default: nil)
+  [共通パラメータ]
 
-    AuthType:		authentication type ('Passwd' or 'MySQL')
-    MailboxType:	mailbox type ('Maildir' or 'MySQL')
-    MaildirUseFileSize:	set true if using file size as message size
-    MaildirExtended:    set true if using Maildir++ file size
-    PasswdLockDir:	directory keeping lock file (when AuthType = 'Passwd')
+    $port (110)
+	port number.
 
-   When AuthType or MailboxType is 'MySQL', set following parameters.
+    $hostname (`uname -n`.chomp)
+	hostname.
 
-    MySQL_Server:	MySQL server hostname
-    MySQL_User:		MySQL connection user
-    MySQL_Pass:		MySQL connection password
-    MySQL_DB:		MySQL database name
-    MySQLAuthQuery:	select query
+    $connection_keep_time (3600)
+	maximum connection keep time.
 
-3. If AuthType or MailboxType is 'MySQL'
+    $command_timeout (600)
+	maximum time waiting command.
 
-   Create database for TPOPS and create table using sql.txt.
+    $with_inetd (false)
+	set true if using inetd.
+
+    $access_log (nil)
+	access log filename.
+
+    $error_log (nil)
+	error log filename.
+
+    $syslog_facility (Syslog::LOG_MAIL)
+	syslog facility. If it is nil, don't use syslog.
+
+    $auth_type ('Passwd')
+	authentication type. 'Passwd' or 'MySQL'.
+
+    $error_interval (5)
+	tpops wait # seconds before return error to client.
+
+    $min_servers (5)
+	minimum # of process.
+
+    $max_servers (50)
+	maximum # of process.
+
+    $max_use (100)
+	maximum session count per process.
+
+    $max_idle (100)
+	maximum idle time.
+
+    $maildir_extended (true)
+	set true if using Maildir++ file size.
+
+    $maildir_use_filesize (true)
+	set true if using file size as message size.
+
+  [when $auth_type == 'Passwd']
+
+    $passwd_lock_dir ('/var/tmp/tpops')
+	directory keeping lock file.
+
+    $apop_passwd_file (nil)
+	APOP password filename.
+
+  [when $auth_type == 'MySQL']
+
+    $mysql_server (nil)
+	MySQL server hostname.
+
+    $mysql_user (nil)
+	MySQL connection username.
+
+    $mysql_pass (nil)
+	MySQL user password.
+
+    $mysql_db (nil)
+	MySQL database name.
+
+    $mysql_auth_query ('select login,passwd,uid,maildir from user where login="%s"')
+	query retrieving user information.
+	%s is replaced with login name.
+
+3. If $auth_type is 'MySQL'
+
+   Create database for TPOPS and create table using tpops_auth-mysql.sql.
 
     ex)
 	% mysqladmin create tpops
-	% mysql tpops < sql.txt
+	% mysql tpops < tpops_auth-mysql.sql
 
 [Start]
 
-1. If using inetd (default)
+1. Standalone
 
-   Set WithInetd = true in tpops.conf, and set /etc/inetd.conf:
+    Run /usr/local/tpops/tpops.
 
-	pop3	stream	tcp	nowait	root	/usr/local/tpops/tpops	tpops
+2. If using inetd
+
+   Set /etc/inetd.conf:
+
+	pop3	stream	tcp	nowait	root	/usr/local/tpops/tpops	tpops --inetd
 
    and kill -HUP <pid_of_inetd>.
 
-2. If not using inetd
-
-   Set WithInetd = false in tpops.conf, run /usr/local/tpops/tpops.
-
 [Starting option]
+
+  -f filename
+
+    read file instead of tpops.conf.
 
   --domain domainname
 
     If login name don't include any character of '@','%','+', attempt
     to authenticate with 'username@domainname'.
 
+  --fg
+
+    foreground.
+
+  --port #
+
+    port number.
+
+  --debug
+
+    log debug information.
+
+  --version
+
+    show version and exit.
+
+  --inetd
+
+    use inetd.
+
+  --user username
+
+    user name.
+
+  --group groupname
+
+    group name.
+
+[Signal]
+
+SIGTERM: exit.
+
+SIGHUP: terminate child process and force disconnecting.
+
+SIGUSR1: terminate child process.
+
 [Add user]
 
-1. If AuthType is 'Passwd' (default)
+1. If $auth_type is 'Passwd' (default)
 
   Add user to OS. If MailboxType is 'Maildir' then ~/Maildir is used.
-  If you use APOP, set APOPPasswdFile in tpops.conf. This file is
+  If you use APOP, set $apop_passwd_file in tpops.conf. This file is
   BDB::Hash that key is loginname and value is plain password. If APOP
   is used, password is searched from this file.
 
-2. If AuthType is 'MySQL'
+2. If $auth_type is 'MySQL'
 
   Add user information to user table:
 
@@ -105,38 +198,32 @@ message can be controled by MySQL table.
 	mail		mail address
 	maildir		Maildir (if using Maildir)
 
-[Entry mail]
-
-1. If MaildirType is 'Maildir' (default)
-
-  Use MTA that support Maildir such as Postfix, qmail.
-
-2. If MaildirType is 'MySQL'
-
-  Entry mail message to msg table:
-
-	id		message ID
-	uid		user ID
-	timestamp	message timestamp
-	header		header part
-	body		body part
-	size		message size
-
 [Log File]
 
-If set tpops.conf in tpops.conf, log to file when user logout. log
+If set $access_log in tpops.conf, log to file when user logout. log
 format is:
 
 	IPaddr login-date login-time logout-date logout-time login-name login-msgs login-msgsize logout-msgs logout-msgsize
 
-If set SyslogFacility, TPOPS write syslog. SyslogFacility is integer
-or symbol like Syslog::LOG_MAIL.
+If set $syslog_facility, TPOPS write syslog. $syslog_facility is
+integer or symbol like Syslog::LOG_MAIL.
 
 [License]
 
 This program is under Ruby license.
 
 [History]
+
+0.5.0	2002-12-04
+	* can run without tpops.conf.
+	* change parameter Parameter to $parameter.
+	* unsupport MySQL mailbox.
+	* use TServer.
+	* default value of $with_inetd is true.
+	* default value of $maildir_extended, $maildir_use_filesize is
+	  true.
+	* enable $error_log when standalone mode.
+	* add command line options.
 
 0.4.8	2002-11-20
 	* Bug fix: don't output username on log when APOP.
@@ -146,4 +233,4 @@ This program is under Ruby license.
 
 TOMITA Masahiro <tommy@tmtm.org>
 
-$Id: README,v 1.3 2002/11/19 16:11:11 tommy Exp $
+$Id: README,v 1.4 2002/12/03 16:26:34 tommy Exp $

@@ -1,406 +1,463 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.34 2002/11/19 16:11:11 tommy Exp $
 
 require 'getopts'
 require 'syslog'
-require 'socket'
+require 'etc'
+require File::dirname($0)+'/tserver'
 
-$LOAD_PATH.unshift File::dirname($0)
+$port = 110
+$hostname = `uname -n`.chomp
+$connection_keep_time = 60*60
+$command_timeout = 10*60
+$with_inetd = false
+$access_log = nil
+$error_log = nil
+$syslog_facility = Syslog::LOG_MAIL
+$auth_type = 'Passwd'
+$mailbox_type = 'Maildir'
+$error_interval = 5
+$min_servers = 5
+$max_servers = 50
+$max_use = 100
+$max_idle = 100
 
-load 'tpops.conf'
-
-Port = 110 unless defined? Port
-Hostname = `uname -n`.chomp unless defined? Hostname
-ConnectionKeepTime = 60*60 unless defined? ConnectionKeepTime
-CommandTimeout = 5*60 unless defined? CommandTimeout
-unless defined? MaildirUseFileSize then
-  MaildirUseFileSize = defined? MaildirCRLF ? MaildirCRLF : false
+def load_config()
+  script_dir = File::dirname $0
+  if $OPT_f then
+    load $OPT_f
+  else
+    load script_dir+'/tpops.conf' if File::exist? script_dir+'/tpops.conf'
+  end
+  require script_dir+'/tpops_auth-'+$auth_type.downcase
+  require script_dir+'/tpops_mailbox-'+$mailbox_type.downcase
+  $default_domain = $OPT_domain if $OPT_domain
+  $foreground = $OPT_fg if $OPT_fg
+  $port = $OPT_port.to_i if $OPT_port
+  $debug = $OPT_debug if $OPT_debug
+  $with_inetd = true if $OPT_inetd
+  $user = $OPT_user if $OPT_user
+  $group = $OPT_group if $OPT_group
+  if $user then
+    $uid = $user =~ /^\d+$/ ? $user.to_i : Etc::getpwnam($user).uid
+  end
+  if $group then
+    $gid = $group =~ /^\d+$/ ? $group.to_i : Etc::getgrnam($group).gid
+  end
 end
-MaildirExtended = false unless defined? MaildirExtended
-WithInetd = true unless defined? WithInetd
-LogFile = nil unless defined? LogFile
-ErrorFile = '/var/log/tpops.err' unless defined? ErrorFile
-SyslogFacility = nil unless defined? SyslogFacility
 
-AuthType = 'Passwd' unless defined? AuthType
-require 'tpops_auth-'+AuthType.downcase
+def log_debug(str)
+  Syslog::debug(str) if $syslog_facility and $debug
+end
 
-MailboxType = 'Maildir' unless defined? MailboxType
-require 'tpops_mailbox-'+MailboxType.downcase
+def log_info(str)
+  Syslog::info(str) if $syslog_facility
+end
+
+def log_notice(str)
+  Syslog::notice(str) if $syslog_facility
+end
+
+def log_warn(str)
+  Syslog::warn(str) if $syslog_facility
+end
+
+def log_err(str)
+  Syslog::err(str) if $syslog_facility
+end
 
 class TPOPS
 
   def initialize()
-    Syslog::open(File::basename($0), nil, SyslogFacility) if SyslogFacility
-    if WithInetd then
-      $stderr = File::open(ErrorFile, 'a')
+    Syslog::open(File::basename($0), nil, $syslog_facility) if $syslog_facility
+    if $with_inetd then
+      $stderr = File::open($error_log || '/dev/null', 'a')
       begin
-	connection(Socket::for_fd $stdin.fileno)
+	Process::uid = $user if $user
+	Process::gid = $group if $group
+	Conn::new(Socket::for_fd $stdin.fileno)
       rescue
+	log_err $!.to_s
 	$stderr.puts Time::now.inspect
 	$stderr.flush
-	Syslog::err($!.to_s) if SyslogFacility
 	raise
       end
     else
-      trap "CHLD", nil		# ignore child process's status
-      sock = TCPServer::new(Port)
-      loop do
-	conn = sock.accept
-	fork do
-	  begin
-	    sock.close
-	    connection(conn)
-	  rescue
-	    $stderr.puts Time::now.inspect
-	    $stderr.flush
-	    Syslog::err($!.to_s) if SyslogFacility
-	    raise
+      if not $foreground then
+	if fork then
+	  exit
+	end
+	Process::setsid
+      end
+      $stderr = File::open($error_log, 'a') if $error_log
+      ts = TServer::new($port)
+      ts.on_child_start = Proc::new do
+	Process::uid = $uid if $uid
+	Process::gid = $gid if $gid
+      end
+      ts.min_servers = $min_servers
+      ts.max_servers = $max_servers
+      ts.max_use = $max_use
+      ts.max_idle = $max_idle
+      trap 'HUP' do
+	load_config
+	ts.min_servers = $min_servers
+	ts.max_servers = $max_servers
+	ts.max_use = $max_use
+	ts.max_idle = $max_idle
+      end
+      ts.start do |conn|
+	begin
+	  Conn::new conn
+	rescue
+	  log_err $!.to_s
+	  $stderr.puts Time::now.inspect
+	  $stderr.flush
+	  raise
+	end
+      end
+    end
+  end
+
+  class Conn
+    def initialize(sock)
+      @sock = sock
+      @status = :AUTHORIZATION
+      @user = nil
+      @apopkey = Auth::apop? ? "<#{$$}.#{Time::now.to_i}@#{$hostname}>" : ''
+      @start_time = Time::now
+      @peer_addr = sock_to_addr @sock
+
+      log_info "connect from #{@peer_addr}"
+
+      def @sock.connect_time=(t)
+	@connect_time = t
+      end
+
+      def @sock.gets_limit()
+	ret = ''
+	loop do
+	  if IO::select([self], nil, nil, $command_timeout) == nil then
+	    raise 'Command timeout'
+	  end
+	  if Time::now.to_i - @connect_time > $connection_keep_time then
+	    raise 'Connection time exceeded'
+	  end
+	  chr = getc
+	  break if chr == nil
+	  ret << chr
+	  break if chr == ?\n
+	  raise 'line exceed 1024 bytes' if ret.length >= 1024
+	end
+	ret == '' ? nil : ret
+      end
+
+      @sock.connect_time = Time::now.to_i
+      ok "TPOPS ready. #{@apopkey}"
+      catch :disconnect do
+	loop do
+	  r = @sock.gets_limit
+	  if not r then break end
+	  r = r.chomp.sub(/\r$/, '')
+	  log_debug "< #{r}"
+	  comm = r.split
+	  if comm.size == 0 then next end
+	  case @status
+	  when :AUTHORIZATION
+	    case comm[0].upcase
+	    when 'QUIT';	comm_auth_quit comm[1..-1]
+	    when 'USER';	comm_user comm[1..-1]
+	    when 'PASS';	comm_pass r.split(' ', 2)[1,1]
+	    when 'APOP';	comm_apop comm[1..-1]
+	    else
+	      err 'invalid command'
+	    end
+	  when :TRANSACTION
+	    case comm[0].upcase
+	    when 'STAT';	comm_stat comm[1..-1]
+	    when 'LIST';	comm_list comm[1..-1]
+	    when 'RETR';	comm_retr comm[1..-1]
+	    when 'DELE';	comm_dele comm[1..-1]
+	    when 'NOOP';	comm_noop comm[1..-1]
+	    when 'RSET';	comm_rset comm[1..-1]
+	    when 'TOP' ;	comm_top comm[1..-1]
+	    when 'UIDL';	comm_uidl comm[1..-1]
+	    when 'QUIT';	comm_quit comm[1..-1]
+	    else
+	      err 'invalid command'
+	    end
 	  end
 	end
-	conn.close
       end
-    end
-  end
-
-  def connection(sock)
-    @sock = sock
-    @status = :AUTHORIZATION
-    @user = nil
-    @apopkey = Auth::apop? ? "<#{$$}.#{Time::now.to_i}@#{Hostname}>" : ''
-    @start_time = Time::now
-    @peer_addr = sock_to_addr @sock
-
-    Syslog::info("connection from #{@peer_addr}") if SyslogFacility
-    at_exit do
       write_log
+      @sock.close
+      @auth.unlock if @auth and @auth.locked?
+      log_info "disconnect from #{@peer_addr}"
     end
 
-    def @sock.gets_limit()
-      ret = ''
-      loop do
-	if IO::select([self], nil, nil, CommandTimeout) == nil then
-	  raise 'Command timeout'
-	end
-	if Time::now.to_i - $login_time > ConnectionKeepTime then
-	  raise 'Connection time exceeded'
-	end
-	chr = getc
-	break if chr == nil
-	ret << chr
-	break if chr == ?\n
-	raise 'line exceed 1024 bytes' if ret.length >= 1024
+    def err(arg=nil)
+      sleep $error_interval
+      @sock.write(if arg then "-ERR #{arg}\r\n" else "-ERR\r\n" end)
+      log_debug "> -ERR #{arg}"
+    end
+
+    def ok(arg=nil)
+      @sock.write(if arg then "+OK #{arg}\r\n" else "+OK\r\n" end)
+      log_debug "> +OK #{arg}"
+    end
+
+    def comm_auth_quit(arg)
+      if arg.size != 0 then
+	err 'too many arguments'
+	return
       end
-      ret == '' ? nil : ret
+      ok 'server signing off' rescue true
+      throw :disconnect
     end
 
-    $login_time = Time::now.to_i
-
-    @sock.write "+OK TPOPS ready. #{@apopkey}\r\n"
-    loop do
-      r = @sock.gets_limit
-      if not r then break end
-      r = r.chomp.sub(/\r$/, '')
-      comm = r.split
-      if comm.size == 0 then next end
-      case @status
-      when :AUTHORIZATION
-	case comm[0].upcase
-	when 'QUIT';	comm_auth_quit comm[1..-1]
-	when 'USER';	comm_user comm[1..-1]
-	when 'PASS';	comm_pass r.split(' ', 2)[1,1]
-	when 'APOP';	comm_apop comm[1..-1]
-	else
-	  err 'invalid command'
-	end
-      when :TRANSACTION
-	case comm[0].upcase
-	when 'STAT';	comm_stat comm[1..-1]
-	when 'LIST';	comm_list comm[1..-1]
-	when 'RETR';	comm_retr comm[1..-1]
-	when 'DELE';	comm_dele comm[1..-1]
-	when 'NOOP';	comm_noop comm[1..-1]
-	when 'RSET';	comm_rset comm[1..-1]
-	when 'TOP';	comm_top comm[1..-1]
-	when 'UIDL';	comm_uidl comm[1..-1]
-	when 'QUIT';	comm_quit comm[1..-1]
-	else
-	  err 'invalid command'
-	end
+    def comm_user(arg)
+      if @user then
+	err 'invalid command'
+	return
+      end
+      if arg.size != 1 then
+	err 'too few/many arguments'
+	return
+      end
+      ok 'password required'
+      @user = arg[0]
+      if $default_domain and @user !~ /[@%\+]/ then
+	@user = @user+'@'+$default_domain
       end
     end
-    exit
-  end
 
-  def err(arg=nil)
-    @sock.write(if arg then "-ERR #{arg}\r\n" else "-ERR\r\n" end)
-  end
-
-  def ok(arg=nil)
-    @sock.write(if arg then "+OK #{arg}\r\n" else "+OK\r\n" end)
-  end
-
-  def comm_auth_quit(arg)
-    if arg.size != 0 then
-      err 'too many arguments'
-      return
-    end
-    ok 'server signing off' rescue true
-    exit
-  end
-
-  def comm_user(arg)
-    if @user then
-      err 'invalid command'
-      return
-    end
-    if arg.size != 1 then
-      err 'too few/many arguments'
-      return
-    end
-    ok 'password required'
-    @user = arg[0]
-    if $default_domain and @user !~ /[@%\+]/ then
-      @user = @user+'@'+$default_domain
-    end
-  end
-
-  def comm_pass(arg)
-    if not @user then
-      err 'invalid command'
-      return
-    end
-    if arg.size != 1 then
-      err 'too few/many arguments'
-      return
-    end
-
-    auth = Auth::new @user, arg[0]
-    if auth.authorized? then
-      to_transaction auth
-      msgs, size = @mailbox.stat
-      @start_mailbox = [msgs, size]
-      ok "#{@user} has #{msgs} messages (#{size} octets)"
-      Syslog::info("login: #{@user} has #{msgs} messages (#{size} octets)") if SyslogFacility
-    else
-      Syslog::notice("authentication failed: #{@user}") if SyslogFacility
-      sleep 5
-      err 'authentication failed'
-      exit
-    end
-  end
-
-  def comm_apop(arg)
-    unless Auth::apop? then
-      err 'APOP not supported'
-      return
-    end
-    if @user then
-      err 'invalid command'
-      return
-    end
-    if arg.size != 2 then
-      err 'too few/many arguments'
-      return
-    end
-    @user = arg[0]
-    auth = Auth::new arg[0], arg[1], @apopkey
-    if auth.authorized? then
-      to_transaction auth
-      msgs, size = @mailbox.stat
-      @start_mailbox = [msgs, size]
-      ok "#{@user} has #{msgs} messages (#{size} octets)"
-      Syslog::info("login: #{@user} has #{msgs} messages (#{size} octets)") if SyslogFacility
-    else
-      sleep 5
-      err 'authentication failed'
-      Syslog::notice("authentication failed: #{@user}") if SyslogFacility
-      exit
-    end
-  end  
-
-  def to_transaction(auth)
-    if not auth.lock then
-      err "cannot lock for #{@user}"
-      Syslog::notice("cannot lock for #{@user}") if SyslogFacility
-      exit
-    end
-    at_exit do
-      auth.unlock()
-    end
-    @mailbox = Mailbox::new auth.uid, auth.maildir
-    after_auth_hook(@sock, auth, @mailbox) if defined? after_auth_hook
-    @status = :TRANSACTION
-  end
-
-  def write_log()
-    if SyslogFacility then
-      if @mailbox then
-	msgs, size = @mailbox.stat
-	Syslog::info("logout: #{@user} has #{msgs} messages (#{size} octets)")
+    def comm_pass(arg)
+      if not @user then
+	err 'invalid command'
+	return
       end
-      Syslog::info("disconnect from #{@peer_addr}")
-    end
-    if LogFile then
-      if @start_mailbox then
-	s_msgs, s_size = @start_mailbox
+      if arg.size != 1 then
+	err 'too few/many arguments'
+	return
+      end
+
+      @auth = Auth::new @user, arg[0]
+      if @auth.authorized? then
+	to_transaction
       else
-	s_msgs, s_size = 0, 0
+	log_notice "authentication failed: #{@user}"
+	err 'authentication failed'
+	throw :disconnect
       end
+    end
+
+    def comm_apop(arg)
+      unless Auth::apop? then
+	err 'APOP not supported'
+	return
+      end
+      if @user then
+	err 'invalid command'
+	return
+      end
+      if arg.size != 2 then
+	err 'too few/many arguments'
+	return
+      end
+      @user = arg[0]
+      @auth = Auth::new arg[0], arg[1], @apopkey
+      if @auth.authorized? then
+	to_transaction
+      else
+	log_notice "authentication failed: #{@user}"
+	err 'authentication failed'
+	throw :disconnect
+      end
+    end  
+
+    def to_transaction()
+      if not @auth.lock then
+	log_notice "cannot lock for #{@user}"
+	err "cannot lock for #{@user}"
+	throw :disconnect
+      end
+      @mailbox = Mailbox::new @auth.uid, @auth.maildir
+      after_auth_hook(@sock, @auth, @mailbox) if defined? after_auth_hook
+      @status = :TRANSACTION
+      msgs, size = @mailbox.stat
+      @start_mailbox = [msgs, size]
+      ok "#{@user} has #{msgs} messages (#{size} octets)"
+      log_info "login: #{@user} has #{msgs} messages (#{size} octets)"
+    end
+
+    def write_log()
       if @mailbox then
 	msgs, size = @mailbox.stat
       else
 	msgs, size = 0, 0
       end
-      u = @user == nil ? '()' : @status == :TRANSACTION ? @user : "(#{@user})"
-      File::open(LogFile, 'a') do |f|
-	f.syswrite sprintf "%s %s %s %s %d %d %d %d\n",
-	  @peer_addr, @start_time.strftime('%Y/%m/%d %H:%M:%S'),
-	  Time::now.strftime('%Y/%m/%d %H:%M:%S'),
-	  u, s_msgs, s_size, msgs, size
+      if @status == :TRANSACTION then
+	log_info "logout: #{@user} has #{msgs} messages (#{size} octets)"
+      end
+      if $access_log then
+	if @start_mailbox then
+	  s_msgs, s_size = @start_mailbox
+	else
+	  s_msgs, s_size = 0, 0
+	end
+	u = @user == nil ? '()' : @status == :TRANSACTION ? @user : "(#{@user})"
+	File::open($access_log, 'a') do |f|
+	  f.syswrite sprintf "%s %s %s %s %d %d %d %d\n",
+	    @peer_addr, @start_time.strftime('%Y/%m/%d %H:%M:%S'),
+	    Time::now.strftime('%Y/%m/%d %H:%M:%S'),
+	    u, s_msgs, s_size, msgs, size
+	end
       end
     end
-  end
 
-  def sock_to_addr(s)
-    s.getpeername[4,4].split('').collect{|i| i[0].to_s}.join('.')
-  end
-
-  def comm_stat(arg)
-    if arg.size != 0 then
-      err 'too many arguments'
-      return
+    def sock_to_addr(s)
+      s.getpeername[4,4].split('').collect{|i| i[0].to_s}.join('.')
     end
-    n, m = @mailbox.stat
-    ok "#{n} #{m}"
-  end
 
-  def comm_list(arg)
-    if arg.size == 0 then
+    def comm_stat(arg)
+      if arg.size != 0 then
+	err 'too many arguments'
+	return
+      end
       n, m = @mailbox.stat
-      ok "#{n} messages (#{m} octets)"
+      ok "#{n} #{m}"
+    end
+
+    def comm_list(arg)
+      if arg.size == 0 then
+	n, m = @mailbox.stat
+	ok "#{n} messages (#{m} octets)"
+	@sock.sync = false
+	@mailbox.list_all.each do |n, m|
+	  @sock.write "#{n} #{m}\r\n"
+	end
+	@sock.sync = true
+	@sock.write ".\r\n"
+      elsif arg.size == 1 then
+	n, m = @mailbox.list(arg[0].to_i)
+	if n then
+	  ok "#{n} #{m}"
+	else
+	  err 'no such message'
+	end
+      else
+	err 'too many arguments'
+      end
+    end
+
+    def comm_retr(arg)
+      if arg.size != 1 then
+	err 'too few/many arguments'
+	return
+      end
+      m, size = @mailbox.list(arg[0].to_i)
+      if not m then
+	err 'no such message'
+	return
+      end
+      ok "#{size} octets"
       @sock.sync = false
-      @mailbox.list_all.each do |n, m|
-	@sock.write "#{n} #{m}\r\n"
+      @mailbox.retr(arg[0].to_i) do |line|
+	if line[0] == ?. then line[0,0] = '.' end
+	@sock.write line
       end
       @sock.sync = true
       @sock.write ".\r\n"
-    elsif arg.size == 1 then
-      n, m = @mailbox.list(arg[0].to_i)
-      if n then
-	ok "#{n} #{m}"
+    end
+
+    def comm_dele(arg)
+      if arg.size != 1 then
+	err 'too few/many arguments'
+	return
+      end
+      if @mailbox.dele(arg[0].to_i) then
+	ok 'message deleted'
       else
 	err 'no such message'
       end
-    else
-      err 'too many arguments'
     end
-  end
 
-  def comm_retr(arg)
-    if arg.size != 1 then
-      err 'too few/many arguments'
-      return
+    def comm_noop(arg)
+      if arg.size != 0 then
+	err 'too many arguments'
+	return
+      end
+      ok
     end
-    m, size = @mailbox.list(arg[0].to_i)
-    if not m then
-      err 'no such message'
-      return
-    end
-    ok "#{size} octets"
-    @sock.sync = false
-    @mailbox.retr(arg[0].to_i) do |line|
-      if line[0] == ?. then line[0,0] = '.' end
-      @sock.write line
-    end
-    @sock.sync = true
-    @sock.write ".\r\n"
-  end
 
-  def comm_dele(arg)
-    if arg.size != 1 then
-      err 'too few/many arguments'
-      return
+    def comm_rset(arg)
+      if arg.size != 0 then
+	err 'too many arguments'
+	return
+      end
+      @mailbox.rset
+      ok
     end
-    if @mailbox.dele(arg[0].to_i) then
-      ok 'message deleted'
-    else
-      err 'no such message'
-    end
-  end
 
-  def comm_noop(arg)
-    if arg.size != 0 then
-      err 'too many arguments'
-      return
-    end
-    ok
-  end
-
-  def comm_rset(arg)
-    if arg.size != 0 then
-      err 'too many arguments'
-      return
-    end
-    @mailbox.rset
-    ok
-  end
-
-  def comm_top(arg)
-    if arg.size != 2 then
-      err 'too few/many arguments'
-      return
-    end
-    if not @mailbox.list(arg[0].to_i) then
-      err 'no such message'
-      return
-    end
-    ok
-    @sock.sync = false
-    @mailbox.top(arg[0].to_i, arg[1].to_i) do |line|
-      if line[0] == ?. then line[0,0] = '.' end
-      @sock.write line
-    end
-    @sock.sync = true
-    @sock.write ".\r\n"
-  end
-
-  def comm_uidl(arg)
-    if arg.size == 0 then
+    def comm_top(arg)
+      if arg.size != 2 then
+	err 'too few/many arguments'
+	return
+      end
+      if not @mailbox.list(arg[0].to_i) then
+	err 'no such message'
+	return
+      end
       ok
       @sock.sync = false
-      @mailbox.uidl_all.each do |m, id|
-	@sock.write "#{m} #{id}\r\n"
+      @mailbox.top(arg[0].to_i, arg[1].to_i) do |line|
+	if line[0] == ?. then line[0,0] = '.' end
+	@sock.write line
       end
       @sock.sync = true
       @sock.write ".\r\n"
-    elsif arg.size == 1 then
-      m, id = @mailbox.uidl(arg[0].to_i)
-      if m then
-	ok "#{m} #{id}"
-      else
-	err 'no such message'
-      end
-    else
-      err 'too many arguments'
     end
-  end
 
-  def comm_quit(arg)
-    if arg.size != 0 then
-      err 'too many arguments'
-      return
+    def comm_uidl(arg)
+      if arg.size == 0 then
+	ok
+	@sock.sync = false
+	@mailbox.uidl_all.each do |m, id|
+	  @sock.write "#{m} #{id}\r\n"
+	end
+	@sock.sync = true
+	@sock.write ".\r\n"
+      elsif arg.size == 1 then
+	m, id = @mailbox.uidl(arg[0].to_i)
+	if m then
+	  ok "#{m} #{id}"
+	else
+	  err 'no such message'
+	end
+      else
+	err 'too many arguments'
+      end
     end
-    @mailbox.commit
-    ok 'server signing off' rescue true
-    exit
+
+    def comm_quit(arg)
+      if arg.size != 0 then
+	err 'too many arguments'
+	return
+      end
+      @mailbox.commit
+      ok 'server signing off' rescue true
+      throw :disconnect
+    end
   end
 
 end
 
-unless getopts(nil, 'domain:') then
+unless getopts(nil, 'f:', 'domain:', 'fg', 'port:', 'debug', 'version', 'inetd', 'user:', 'group:') then
   raise 'unknown options'
 end
-$default_domain = $OPT_domain
+if $OPT_version then
+  puts "TPOPS version 0.5.0"
+  exit
+end
+load_config
 
 TPOPS::new

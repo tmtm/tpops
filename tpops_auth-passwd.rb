@@ -1,14 +1,14 @@
-# $Id: tpops_auth-passwd.rb,v 1.7 2002/11/07 14:39:12 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.8 2002/12/03 16:26:34 tommy Exp $
 
 require 'etc'
 
 class TPOPS
   class Auth
 
-    PasswdLockDir = '/var/tmp/tpops' unless defined? PasswdLockDir
+    $passwd_lock_dir = '/var/tmp/tpops' unless defined? $passwd_lock_dir
 
     def Auth::apop?()
-      defined? APOPPasswdFile
+      defined? $apop_passwd_file
     end
 
     def initialize(user, pass, apop=nil)
@@ -21,7 +21,7 @@ class TPOPS
       if apop then
 	require 'bdb'
 	require 'md5'
-	apophash = BDB::Hash::open(APOPPasswdFile, nil, 'r')
+	apophash = BDB::Hash::open($apop_passwd_file, nil, 'r')
 	pw = apophash[@login+"\0"].chop
 	apophash.close
 	return unless pw
@@ -46,17 +46,21 @@ class TPOPS
       @authorized
     end
 
+    def locked?()
+      @locked
+    end
+
     attr_reader :login, :uid, :maildir
 
     def lock()
-      lockfile = "#{PasswdLockDir}/#{@uid}"
-      Dir::mkdir PasswdLockDir, 0700 unless File::exists? PasswdLockDir
+      lockfile = "#{$passwd_lock_dir}/#{@uid}"
+      Dir::mkdir $passwd_lock_dir, 0700 unless File::exists? $passwd_lock_dir
       if File::exists? lockfile then
-	if Time::now - File::stat(lockfile).mtime > ConnectionKeepTime then
-	  File::unlink lockfile
+	if Time::now - File::stat(lockfile).mtime > $connection_keep_time then
+	  File::unlink lockfile rescue nil
 	else
-	  pid = File::open(lockfile) do |f| f.gets end
-	  if pid =~ /^\d+$/ then
+	  pid, host = File::open(lockfile) do |f| f.gets.split end
+	  if pid =~ /^\d+$/ and host == $hostname then
 	    begin
 	      Process::kill 0, pid.to_i
 	      return false
@@ -70,18 +74,21 @@ class TPOPS
       end
       begin
 	File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
-	  f.puts $$.to_s
+	  f.puts "#{$$.to_s} #{$hostname}"
 	end
       rescue
+	log_err "#{lockfile}: #{$!.to_s}"
 	$stderr.puts "#{lockfile}: #{$!.to_s}"
 	return false
       end
+      @locked = true
       true
     end
 
     def unlock()
-      lockfile = "#{PasswdLockDir}/#{@uid}"
+      lockfile = "#{$passwd_lock_dir}/#{@uid}"
       File::unlink lockfile
+      @locked = false
     end
 
   end

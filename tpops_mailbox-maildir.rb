@@ -1,6 +1,9 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.8 2002/08/15 16:21:39 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.9 2002/12/03 16:26:34 tommy Exp $
 
 class TPOPS
+
+  $maildir_use_filesize = true unless defined? $maildir_use_filesize
+  $maildir_extended = true unless defined? $maildir_extended
 
   class FileStat
     def initialize(name, size, mtime)
@@ -41,10 +44,10 @@ class TPOPS
 	  if f =~ /^(\d+)\./ then
 	    mtime = $1.to_i
 	    p = path+'/'+f
-	    if MaildirExtended and f =~ /,S=(\d+)/ then
+	    if $maildir_extended and f =~ /,S=(\d+)/ then
 	      size = $1.to_i
 	    else
-	      if MaildirUseFileSize then
+	      if $maildir_use_filesize then
 		s = File::stat(p)
 		size = s.size
 	      else
