@@ -1,9 +1,16 @@
-# $Id: tpops_maildir.rb,v 1.1 2001/06/29 05:40:53 tommy Exp $
+# $Id: tpops_maildir.rb,v 1.2 2001/06/29 12:18:47 tommy Exp $
 
 require 'md5'
 require 'mysql'
 
 class TPOPS
+
+  class Files
+    def initialize(name, size, mtime=0)
+      @name, @size, @mtime = name, size, mtime
+    end
+    attr_reader :name, :size, :mtime
+  end
 
   def mycon()
     Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
@@ -41,7 +48,7 @@ class TPOPS
       if f !~ /^\./ then
 	p = path+'/'+f
 	s = File::stat(p)
-	files << [p, s.size, s.mtime]
+	files << Files::new(p, s.size, s.mtime.to_i)
       end
     end
     path = @maildir+'/new'
@@ -49,13 +56,12 @@ class TPOPS
       if f !~ /^\./ then
 	p = path+'/'+f
 	s = File::stat(p)
-	files << [p, s.size, s.mtime]
+	files << Files::new(p, s.size, s.mtime.to_i)
       end
     end
-    files.sort do |a, b|
-      a[2] <=> b[2]
+    @files = files.sort do |a, b|
+      a.mtime <=> b.mtime
     end
-    @files = files
   end
 
   def lock()
@@ -80,7 +86,7 @@ class TPOPS
   def stat()
     size = 0
     @files.each do |f|
-      size += f[1]
+      size += f.size
     end
     [@files.size, size]
   end
@@ -95,7 +101,7 @@ class TPOPS
     ret = []
     @files.each_index do |i|
       if not @deleted.include? i+1 then
-	ret << [i+1, @files[i][1]]
+	ret << [i+1, @files[i].size]
       end
     end
     ret
@@ -103,12 +109,12 @@ class TPOPS
 
   def list(msg)
     if not exist? msg then return nil end
-    [msg, @files[msg-1][1]]
+    [msg, @files[msg-1].size]
   end
 
   def retr(msg)
     if not exist? msg then return nil end
-    File::open(@files[msg-1][0]) do |f| f.read end
+    File::open(@files[msg-1].name) do |f| f.read end
   end
 
   def dele(msg)
@@ -123,22 +129,22 @@ class TPOPS
 
   def top(msg, lines)
     if not exist? msg then return nil end
-    r = File::open(@files[msg-1][0]) do |f| f.read end
-    if r =~ /\r?\n(?=\r?\n)/ then
-      h = $` + $&	#`
+    r = File::open(@files[msg-1].name) do |f| f.read end
+    if r =~ /(\r?\n)\r?\n/ then
+      h = $` + $1	#`
       b = $'		#'
     else
       h = r
       b = ''
     end
-    h + b.split(/^/)[0,lines].join
+    h + "\r\n" + b.split(/^/)[0,lines].join
   end
 
   def uidl_all()
     ret = []
     @files.each_index do |i|
       if not @deleted.include? i+1 then
-	ret << [i+1, File::basename(@files[i][0]).split(/:/)[0]]
+	ret << [i+1, File::basename(@files[i].name).split(/:/)[0]]
       end
     end
     ret
@@ -146,12 +152,12 @@ class TPOPS
 
   def uidl(msg)
     if not exist? msg then return nil end
-    [msg, File::basename(@files[msg-1][0]).split(/:/)[0]]
+    [msg, File::basename(@files[msg-1].name).split(/:/)[0]]
   end
 
   def commit()
     @deleted.each do |i|
-      f = @files[i-1][0]
+      f = @files[i-1].name
       File::rename f, File::dirname(f)+'/.'+File::basename(f)
     end
   end
