@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.32 2002/11/07 14:39:12 tommy Exp $
+# $Id: tpops,v 1.33 2002/11/08 07:47:11 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -195,9 +195,9 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
+    @user = arg[0]
     auth = Auth::new arg[0], arg[1], @apopkey
     if auth.authorized? then
-      @user = arg[0]
       to_transaction auth
       msgs, size = @mailbox.stat
       @start_mailbox = [msgs, size]
