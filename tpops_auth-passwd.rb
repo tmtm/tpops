@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.11 2004/03/22 01:39:49 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.12 2004/05/31 18:02:08 tommy Exp $
 
 require 'etc'
 
@@ -29,12 +29,14 @@ class TPOPS
 	return
       else
 	if pw.passwd == 'x' then
-	  require 'shadow'
-	  sh = Shadow::Passwd.getspnam @login
-	  if sh and sh.sp_pwdp.length > 1 and pass.crypt(sh.sp_pwdp) == sh.sp_pwdp then
-	    @authorized = true
-	  end
-	elsif pass.crypt(pw.passwd) == pw.passwd then
+          IO.foreach("/etc/shadow") do |line|
+            shuser, shpw = line.split(/:/)
+            if shuser == @login and shpw.length > 1 and pass.crypt(shpw) == shpw then
+              @authorized = true
+              return
+            end
+          end
+        elsif pass.crypt(pw.passwd) == pw.passwd then
 	  @authorized = true
 	end
       end
@@ -51,43 +53,44 @@ class TPOPS
     attr_reader :login, :uid, :maildir
 
     def lock()
-      lockfile = "#{$passwd_lock_dir}/#{@uid}"
       Dir.mkdir $passwd_lock_dir, 0700 unless File.exists? $passwd_lock_dir
-      if File.exists? lockfile then
-	if Time.now - File.stat(lockfile).mtime > $connection_keep_time then
-	  File.unlink lockfile rescue nil
-	else
-	  pid, host = File.open(lockfile) do |f| f.gets.split end
-	  if pid =~ /^\d+$/ and host == $hostname then
-	    begin
-	      Process.kill 0, pid.to_i
-	      return false
-	    rescue Errno::ESRCH
-	      File.unlink lockfile
-	    rescue
-	      return false
-	    end
-	  end
-	end
+      lockfile = "#{$passwd_lock_dir}/#{@uid}"
+      if File.exist? lockfile then
+        begin
+          if Time.now.to_i - File.mtime(lockfile).to_i > $connection_keep_time then
+            File.unlink lockfile
+            log_warn "lockfile removed because timeout: #{lockfile}"
+          else
+            pid, host = File.open(lockfile) do |f| f.read.split end
+            if pid =~ /^\d+$/ and host == $hostname then
+              begin
+                Process.kill 0, pid.to_i
+                return false
+              rescue Errno::ESRCH
+                File.unlink lockfile
+                log_warn "lockfile removed because pid(#{pid}) not exist: #{lockfile}"
+              end
+            end
+          end
+        rescue Errno::ENOENT
+          # ignore "no such file or directory"
+        end
       end
       begin
-	File.open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
-	  f.puts "#{$$.to_s} #{$hostname}"
-	end
-      rescue
-	log_err "#{lockfile}: #{$!.to_s}"
-	$stderr.puts "#{lockfile}: #{$!.to_s}"
-	return false
+        File.open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600).close
+      rescue Errno::EEXIST
+        return false
       end
+      @lockfile = lockfile
       @locked = true
       true
     end
 
     def unlock()
-      lockfile = "#{$passwd_lock_dir}/#{@uid}"
-      File.unlink lockfile
+      if @locked and @lockfile then
+        File.unlink @lockfile rescue log_err #{@lockfile}: #{$!}"
+      end
       @locked = false
     end
-
   end
 end

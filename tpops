@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.45 2004/03/21 13:26:35 tommy Exp $
+# $Id: tpops,v 1.46 2004/05/31 18:02:08 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -42,7 +42,7 @@ def log_notice(str)
 end
 
 def log_warn(str)
-  Syslog.warn("%s", str) if $syslog_facility
+  Syslog.warning("%s", str) if $syslog_facility
 end
 
 def log_err(str)
@@ -234,7 +234,10 @@ class TPOPS
 	catch :disconnect do
 	  loop do
 	    r = @sock.gets
-	    if not r then break end
+	    if not r then
+              log_warn "connection closed unexpectedly"
+              break
+            end
 	    r = r.chomp.sub(/\r$/, "")
 	    log_debug "< #{r}"
 	    comm = r.split
@@ -371,7 +374,7 @@ class TPOPS
 
     def write_log()
       if @mailbox then
-	msgs, size = @mailbox.stat
+	msgs, size = @mailbox.real_stat
       else
 	msgs, size = 0, 0
       end

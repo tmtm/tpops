@@ -52,7 +52,6 @@
     <h2>必要なもの</h2>
     <ul>
       <li><a href="http://www.ruby-lang.org">Ruby 1.6.8</a>
-      <li><a href="http://kt-www.jaist.ac.jp/~ttate/ruby/ruby-ext.html">ruby-shadow 1.4.1</a> (shadow パスワードを使用する場合)
       <li><a href="http://www.mysql.com">MySQL 3.23.x</a> (MySQL 認証/メールボックスを使用する場合)
       <li><a href="/ruby/mysql/">Ruby/MySQL 0.2.4</a> (MySQL を使用する場合)
     </ul>
@@ -362,6 +361,8 @@
 	  <li>$maildir パラメータの導入。
 	  <li>SIGHUP 時にすべての設定パラメータを反映させるようにした。
 	  <li>$apop_passwd_file の形式を BDB::Hash 形式から DBM 形式に変更。
+	  <li>ロックファイルの形式を変更。
+	  <li>ruby-shadow を不要にした。
 	</ul>
       <dt>0.5.5	2004-03-18
       <dd>
@@ -527,7 +528,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Mon Mar 22 10:37:41 JST 2004
+Last modified: Mon Mar 22 11:39:31 JST 2004
 <!-- hhmts end -->
     </p>
   </body>
