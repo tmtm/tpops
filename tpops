@@ -1,52 +1,62 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.46 2004/05/31 18:02:08 tommy Exp $
+# $Id: tpops,v 1.47 2004/06/05 13:03:56 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
 #
 
-require "getopts"
+$:.unshift File.dirname($0)
+
 require "syslog"
-require "etc"
-require File.dirname($0)+"/tserver"
+require "optconfig"
+require "tserver"
 
 $version = "0.6"
 
-$port = 110
-$hostname = `uname -n`.chomp
-$connection_keep_time = 60*60
-$command_timeout = 10*60
-$with_inetd = false
-$access_log = nil
-$error_log = nil
-$syslog_facility = Syslog::LOG_MAIL
-$auth_type = "Passwd"
-$mailbox_type = "Maildir"
-$error_interval = 5
-$min_servers = 5
-$max_servers = 50
-$max_use = 100
-$max_idle = 100
-$pid_file = nil
+$options = {
+  ["config", "f"]	=> true,
+  "domain"		=> true,
+  "fg"			=> nil,
+  "debug"		=> nil,
+  "version"		=> nil,
+  "inetd"		=> nil,
+  ["port", "p"]		=> [/\A\d+\Z/, 110],
+  ["user", "u"]		=> true,
+  ["group", "g"]	=> true,
+  "hostname"		=> [true, `uname -n`.chomp],
+  "connection-keep-time"=> [true, 60*60],
+  "command-timeout"	=> [true, 10*60],
+  "access-log"		=> true,
+  "error-log"		=> true,
+  "syslog"		=> [true, "mail"],
+  "auth-type"		=> [true, "passwd"],
+  "mailbox-type"	=> [true, "maildir"],
+  "error-interval"	=> [true, 5],
+  "min-servers"		=> [true, 5],
+  "max-servers"		=> [true, 50],
+  "max-use"		=> [true, 100],
+  "max-idle"		=> [true, 100],
+  "pid-file"		=> true,
+}
 
 def log_debug(str)
-  Syslog.debug("%s", str) if $syslog_facility and $debug
+  Syslog.debug("%s", str) if Syslog.opened? and $conf["debug"]
 end
 
 def log_info(str)
-  Syslog.info("%s", str) if $syslog_facility
+  Syslog.info("%s", str) if Syslog.opened?
 end
 
 def log_notice(str)
-  Syslog.notice("%s", str) if $syslog_facility
+  Syslog.notice("%s", str) if Syslog.opened?
 end
 
 def log_warn(str)
-  Syslog.warning("%s", str) if $syslog_facility
+  Syslog.warning("%s", str) if Syslog.opened?
 end
 
 def log_err(str)
-  Syslog.err("%s", str) if $syslog_facility
+  Syslog.err("%s", str) if Syslog.opened?
 end
 
 class TPOPS
@@ -55,18 +65,16 @@ class TPOPS
   end
 
   def initialize()
-    at_exit do
-      File.unlink $old_pid_file rescue nil if $old_pid_file
-    end
     ts = nil
-    loop do
+    loop = true
+    while loop do
       load_config
-      call_by_inetd if $with_inetd
+      call_by_inetd if $conf["inetd"]
 
-      if $port != $old_port then
+      if $conf["port"] != $port then
         ts.close if ts
-        ts = TServer.new($port)
-        $old_port = $port
+        ts = TServer.new($conf["port"])
+        $port = $conf["port"]
       end
 
       ts.handle_signal = false
@@ -82,38 +90,45 @@ class TPOPS
         end
         trap "TERM" do
           ts.terminate
-          exit
+          loop = false
+          ts.stop
         end
         trap "INT" do
           ts.interrupt
-          exit
+          loop = false
+          ts.stop
         end
         $signal_setup = true
       end
 
-      if $error_log then
-        File.open($error_log, "a") do |f|
+      if $conf["error-log"] then
+        File.open($conf["error-log"], "a") do |f|
           $stderr.reopen f
+          $stderr.sync = true
+          f.close
         end
       end
-      if not $foreground and not $already_forked then
+      if not $conf["fg"] and not $already_forked then
         if fork then
           exit
         end
         Process.setsid
         $already_forked = true
       end
-      File.unlink $old_pid_file rescue nil if $old_pid_file
-      $old_pid_file = nil
-      if $pid_file then
-        File.open($pid_file, "w") do |f| f.puts $$ end
-        $old_pid_file = $pid_file
+      File.unlink $pid_file rescue nil if $pid_file
+      $pid_file = nil
+      if $conf["pid-file"] then
+        File.open($conf["pid-file"], "w") do |f| f.puts $$ end
+        $pid_file = $conf["pid-file"]
       end
 
-      ts.min_servers = $min_servers
-      ts.max_servers = $max_servers
-      ts.max_use = $max_use
-      ts.max_idle = $max_idle
+      ts.min_servers = $conf["min-servers"]
+      ts.max_servers = $conf["max-servers"]
+      ts.max_use = $conf["max-use"]
+      ts.max_idle = $conf["max-idle"]
+
+      log_notice "tpops daemon start"
+
       ts.start do |conn|
         begin
           Conn.new conn
@@ -128,11 +143,16 @@ class TPOPS
         end
       end
     end
+
+    log_notice "tpops daemon stop"
+    File.unlink $pid_file rescue nil if $pid_file
   end
 
   def call_by_inetd()
-    File.open($error_log || "/dev/null", "a") do |f|
+    File.open($conf["error-log"] || "/dev/null", "a") do |f|
       $stderr.reopen f
+      f.close
+      $stderr.sync
     end
     begin
       Process.uid = $uid if $uid
@@ -144,46 +164,41 @@ class TPOPS
     rescue
       log_err $!.to_s
       $stderr.puts Time.now.inspect
-      $stderr.flush
       raise
     end
     exit
   end
 
   def load_config()
-    script_dir = File.dirname $0
-    if $OPT_f then
-      load $OPT_f
-    else
-      load script_dir+"/tpops.conf" if File.exist? script_dir+"/tpops.conf"
+    begin
+      $conf.parse ARGV
+    rescue OptConfig::Error
+      log_err $!.to_s
+      raise
     end
-    require script_dir+"/tpops_auth-"+$auth_type.downcase
-    require script_dir+"/tpops_mailbox-"+$mailbox_type.downcase
-    $default_domain = $OPT_domain if $OPT_domain
-    $foreground = $OPT_fg if $OPT_fg
-    $port = $OPT_port.to_i if $OPT_port
-    $debug = $OPT_debug if $OPT_debug
-    $pid_file = $OPT_pidfile if $OPT_pidfile
-    $with_inetd = true if $OPT_inetd
-    $user = $OPT_user if $OPT_user
-    $group = $OPT_group if $OPT_group
-    if $user then
-      if $user.is_a? Integer then
-        $uid = $user
+    require "tpops_auth-"+$conf["auth-type"].downcase
+    require "tpops_mailbox-"+$conf["mailbox-type"].downcase
+    if $conf["user"] then
+      if $conf["user"] =~ /\A\d+\Z/ then
+        $uid = $conf["user"].to_i
       else
-        $uid = $user =~ /^\d+$/ ? $user.to_i : Etc.getpwnam($user).uid
+        require "etc"
+        $uid = Etc.getpwnam($conf["user"]).uid
       end
     end
-    if $group then
-      if $group.is_a? Integer then
-        $gid = $group
+    if $conf["group"] then
+      if $conf["group"] =~ /\A\d+\Z/ then
+        $uid = $conf["group"].to_i
       else
-        $gid = $group =~ /^\d+$/ ? $group.to_i : Etc.getgrnam($group).gid
+        require "etc"
+        $gid = Etc.getgrnam($conf["group"]).gid
       end
     end
-    if $syslog_facility then
+    if not $conf["syslog"] or $conf["syslog"] == "" or $conf["syslog"] == "none" then
       Syslog.close if Syslog.opened?
-      Syslog.open(File.basename($0), nil, $syslog_facility)
+    else
+      fac = eval "Syslog::LOG_#{$conf["syslog"].upcase}"
+      Syslog.open(File.basename($0), nil, fac)
     end
   end
 
@@ -192,7 +207,7 @@ class TPOPS
       @sock = sock
       @status = :AUTHORIZATION
       @user = nil
-      @apopkey = Auth.apop? ? "<#{$$}.#{Time.now.to_i}@#{$hostname}>" : ""
+      @apopkey = Auth.apop? ? "<#{$$}.#{Time.now.to_i}@#{$conf["hostname"]}>" : ""
       @start_time = Time.now
       @peer_addr = sock_to_addr @sock
 
@@ -205,10 +220,10 @@ class TPOPS
       def @sock.gets()
 	ret = ""
 	loop do
-	  if IO.select([self], nil, nil, $command_timeout) == nil then
+	  if IO.select([self], nil, nil, $conf["command-timeout"]) == nil then
 	    raise TPOPS::Error, "Command timeout"
 	  end
-	  if Time.now.to_i - @connect_time > $connection_keep_time then
+	  if Time.now.to_i - @connect_time > $conf["connection-keep-time"] then
 	    raise TPOPS::Error, "Connection time exceeded"
 	  end
 	  chr = getc
@@ -278,7 +293,7 @@ class TPOPS
     end
 
     def err(arg=nil)
-      sleep $error_interval
+      sleep $conf["error-interval"]
       @sock.write(arg ? "-ERR #{arg}\r\n" : "-ERR\r\n")
       log_debug "> -ERR #{arg}"
     end
@@ -308,8 +323,8 @@ class TPOPS
       end
       ok "password required"
       @user = arg[0]
-      if $default_domain and @user !~ /[@%\+]/ then
-	@user = @user+"@"+$default_domain
+      if $conf["domain"] and @user !~ /[@%\+]/ then
+	@user = @user+"@"+$conf["domain"]
       end
     end
 
@@ -381,14 +396,14 @@ class TPOPS
       if @status == :TRANSACTION then
 	log_info "logout: #{@user} has #{msgs} messages (#{size} octets)"
       end
-      if $access_log then
+      if $conf["access-log"] then
 	if @start_mailbox then
 	  s_msgs, s_size = @start_mailbox
 	else
 	  s_msgs, s_size = 0, 0
 	end
 	u = @user == nil ? "()" : @status == :TRANSACTION ? @user : "(#{@user})"
-	File.open($access_log, "a") do |f|
+	File.open($conf["access-log"], "a") do |f|
 	  f.syswrite sprintf("%s %s %s %s %d %d %d %d\n",
 	    @peer_addr, @start_time.strftime("%Y/%m/%d %H:%M:%S"),
 	    Time.now.strftime("%Y/%m/%d %H:%M:%S"),
@@ -534,12 +549,66 @@ class TPOPS
 
 end
 
-unless getopts(nil, "f:", "domain:", "fg", "port:", "debug", "version", "inetd", "user:", "group:", "pidfile:") then
-  raise TPOPS::Error, "unknown options"
+def usage()
+  $stderr.puts <<EOS
+Usage: tpops [options]
+options:
+  --access-log=filename
+  --auth-type={passwd|mysql|ldap}
+  --command-timeout=#
+  --connection-keep-time=#
+  --config=filename, -f filename
+  --debug
+  --domain=domainname
+  --error-interval=#
+  --error-log=filename
+  --fg
+  --group=grpname, -g grpname
+  --hostname=hostname
+  --inetd
+  --max-idle=#
+  --max-servers=#
+  --max-use=#
+  --min-servers=#
+  --pid-file=filename
+  --port=#, -p #
+  --syslog=name
+  --user=username, -u username
+  --version
+EOS
 end
-if $OPT_version then
+
+script_dir = File.dirname $0
+
+$conf = OptConfig.new
+$conf.options = $options
+begin
+  n = $conf.parse ARGV
+  if $conf["config"] then
+    $conf.file = $conf["config"]
+    n = $conf.parse ARGV
+  elsif File.exist? "#{script_dir}/tpops.conf"
+    $conf.file = "#{script_dir}/tpops.conf"
+    n = $conf.parse ARGV
+  end
+  if ARGV.size > n then
+    usage
+  end
+rescue OptConfig::Error
+  $stderr.puts $!
+  usage
+  exit 1
+end
+
+
+if $conf["version"] then
   puts "TPOPS version #{$version}"
   exit
 end
 
-TPOPS.new
+begin
+  TPOPS.new
+rescue
+  log_err $!.to_s
+  raise
+end
