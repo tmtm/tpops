@@ -56,23 +56,23 @@ def load_config()
 end
 
 def log_debug(str)
-  Syslog::debug(str) if $syslog_facility and $debug
+  Syslog::debug("%s", str) if $syslog_facility and $debug
 end
 
 def log_info(str)
-  Syslog::info(str) if $syslog_facility
+  Syslog::info("%s", str) if $syslog_facility
 end
 
 def log_notice(str)
-  Syslog::notice(str) if $syslog_facility
+  Syslog::notice("%s", str) if $syslog_facility
 end
 
 def log_warn(str)
-  Syslog::warn(str) if $syslog_facility
+  Syslog::warn("%s", str) if $syslog_facility
 end
 
 def log_err(str)
-  Syslog::err(str) if $syslog_facility
+  Syslog::err("%s", str) if $syslog_facility
 end
 
 class TPOPS
