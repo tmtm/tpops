@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.47 2004/06/05 13:03:56 tommy Exp $
+# $Id: tpops,v 1.48 2004/06/06 08:10:41 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -64,17 +64,16 @@ class TPOPS
   class Error < StandardError
   end
 
-  def initialize()
+  def start()
     ts = nil
     loop = true
     while loop do
       load_config
-      call_by_inetd if $conf["inetd"]
 
-      if $conf["port"] != $port then
+      if $conf["port"] != @port then
         ts.close if ts
         ts = TServer.new($conf["port"])
-        $port = $conf["port"]
+        @port = $conf["port"]
       end
 
       ts.handle_signal = false
@@ -83,7 +82,7 @@ class TPOPS
         Process.euid = $uid if $uid
         Process.gid = $gid if $gid
       end
-      unless $signal_setup then
+      unless @signal_setup then
         trap "HUP" do
           ts.terminate
           ts.stop
@@ -98,14 +97,13 @@ class TPOPS
           loop = false
           ts.stop
         end
-        $signal_setup = true
+        @signal_setup = true
       end
 
       if $conf["error-log"] then
         File.open($conf["error-log"], "a") do |f|
           $stderr.reopen f
           $stderr.sync = true
-          f.close
         end
       end
       if not $conf["fg"] and not $already_forked then
@@ -115,11 +113,11 @@ class TPOPS
         Process.setsid
         $already_forked = true
       end
-      File.unlink $pid_file rescue nil if $pid_file
-      $pid_file = nil
+      File.unlink @pid_file rescue nil if @pid_file
+      @pid_file = nil
       if $conf["pid-file"] then
         File.open($conf["pid-file"], "w") do |f| f.puts $$ end
-        $pid_file = $conf["pid-file"]
+        @pid_file = $conf["pid-file"]
       end
 
       ts.min_servers = $conf["min-servers"]
@@ -127,31 +125,26 @@ class TPOPS
       ts.max_use = $conf["max-use"]
       ts.max_idle = $conf["max-idle"]
 
-      log_notice "tpops daemon start"
-
       ts.start do |conn|
         begin
           Conn.new conn
         rescue TPOPS::Error
-          log_err $!.to_s
+          log_err "#{$!}"
           exit 1
         rescue
-          log_err $!.to_s
+          log_err "#{$@[0]}: #{$!}"
           $stderr.puts Time.now.inspect
           $stderr.flush
           raise
         end
       end
     end
-
-    log_notice "tpops daemon stop"
-    File.unlink $pid_file rescue nil if $pid_file
+    File.unlink @pid_file rescue nil if @pid_file
   end
 
-  def call_by_inetd()
+  def start_by_inetd()
     File.open($conf["error-log"] || "/dev/null", "a") do |f|
       $stderr.reopen f
-      f.close
       $stderr.sync
     end
     begin
@@ -160,9 +153,9 @@ class TPOPS
       Process.gid = $gid if $gid
       Conn.new(Socket.for_fd($stdin.fileno))
     rescue TPOPS::Error
-      log_err $!.to_s
+      log_err "#{$!}"
     rescue
-      log_err $!.to_s
+      log_err "#{$@[0]}: #{$!}"
       $stderr.puts Time.now.inspect
       raise
     end
@@ -173,7 +166,7 @@ class TPOPS
     begin
       $conf.parse ARGV
     rescue OptConfig::Error
-      log_err $!.to_s
+      log_err "#{$!}"
       raise
     end
     require "tpops_auth-"+$conf["auth-type"].downcase
@@ -198,7 +191,11 @@ class TPOPS
       Syslog.close if Syslog.opened?
     else
       fac = eval "Syslog::LOG_#{$conf["syslog"].upcase}"
-      Syslog.open(File.basename($0), nil, fac)
+      if Syslog.opened? then
+        Syslog.reopen(File.basename($0), nil, fac)
+      else
+        Syslog.open(File.basename($0), nil, fac)
+      end
     end
   end
 
@@ -220,10 +217,10 @@ class TPOPS
       def @sock.gets()
 	ret = ""
 	loop do
-	  if IO.select([self], nil, nil, $conf["command-timeout"]) == nil then
+	  if IO.select([self], nil, nil, $conf["command-timeout"].to_i) == nil then
 	    raise TPOPS::Error, "Command timeout"
 	  end
-	  if Time.now.to_i - @connect_time > $conf["connection-keep-time"] then
+	  if Time.now.to_i - @connect_time > $conf["connection-keep-time"].to_i then
 	    raise TPOPS::Error, "Connection time exceeded"
 	  end
 	  chr = getc
@@ -413,7 +410,17 @@ class TPOPS
     end
 
     def sock_to_addr(s)
-      s.getpeername[4,4].split("").collect{|i| i[0].to_s}.join(".")
+      begin
+        if s.methods.include? "peeraddr" then
+          return s.peeraddr[3]
+        elsif s.methods.include? "getpeername" then
+          return s.getpeername[4,4].split("").collect{|i| i[0].to_s}.join(".")
+        else
+          return "unknown"
+        end
+      rescue
+        return "unknown"
+      end
     end
 
     def comm_stat(arg)
@@ -600,15 +607,22 @@ rescue OptConfig::Error
   exit 1
 end
 
-
 if $conf["version"] then
   puts "TPOPS version #{$version}"
   exit
 end
 
 begin
-  TPOPS.new
+  tpops = TPOPS.new
+  tpops.load_config
+  if $conf["inetd"] then
+    tpops.start_by_inetd
+  else
+    log_notice "tpops daemon start"
+    tpops.start
+    log_notice "tpops daemon stop"
+  end
 rescue
-  log_err $!.to_s
+  log_err "#{$@[0]}: #{$!}"
   raise
 end
