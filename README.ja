@@ -7,7 +7,7 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
 [必要なもの]
 
-  Ruby 1.6.7
+  Ruby 1.6.8
 	http://www.ruby-lang.org
 
   ruby-shadow 1.4.x	shadow パスワードを使用する場合に必要
@@ -28,9 +28,9 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.5.2.tar.gz
-	# chown -R root:root tpops-0.5.2
-	# ln -s tpops-0.5.2 tpops
+	# tar xpfvz /tmp/tpops-0.5.4.tar.gz
+	# chown -R root:root tpops-0.5.4
+	# ln -s tpops-0.5.4 tpops
 
 2. tpops.conf を作成してください。サンプルが tpops.conf.sample にあり
    ます。
@@ -282,6 +282,9 @@ false」を設定してください。ただし、メッセージサイズを調べるために、メッ
 
 [履歴]
 
+0.5.4	2003-09-10
+	・syslog が「%」を含む文字列でエラーになっていたバグを修正
+
 0.5.3a	2003-04-27
 	・tserver 0.0.7 を使用
 
@@ -395,4 +398,4 @@ false」を設定してください。ただし、メッセージサイズを調べるために、メッ
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.37 2003/04/26 15:58:48 tommy Exp $
+$Id: README.ja,v 1.38 2003/10/27 08:15:06 tommy Exp $
