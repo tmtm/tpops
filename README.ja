@@ -29,6 +29,7 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
    例)
 	# cd /usr/local
 	# tar xpfvz /tmp/tpops-0.4.6.tar.gz
+	# chown -R root:root tpops-0.4.6
 	# ln -s tpops-0.4.6 tpops
 
 2. tpops.conf を作成してください。サンプル(とデフォルト値)が 
@@ -204,6 +205,12 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 [履歴]
 
+0.4.7	2002-11-07
+	・CommandTimeout,ConnectionKeepTime タイマが働かないことがある
+	  バグを修正
+	・メール数とサイズをログに記録するようにした
+	・コネクション時に
+
 0.4.6a	2002-08-16
 	・クライアントが接続を切断した時に無限ループになるバグを修正
 
@@ -275,4 +282,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.27 2002/08/16 10:55:35 tommy Exp $
+$Id: README.ja,v 1.28 2002/11/07 03:20:11 tommy Exp $

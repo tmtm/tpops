@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.29 2002/08/16 10:55:35 tommy Exp $
+# $Id: tpops,v 1.30 2002/11/07 03:20:11 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -60,7 +60,15 @@ class TPOPS
 
     def @sock.gets_limit()
       ret = ''
-      while chr = getc do
+      loop do
+	if IO::select([self], nil, nil, CommandTimeout) == nil then
+	  raise 'Command timeout'
+	end
+	if Time::now.to_i - $login_time > ConnectionKeepTime then
+	  raise 'Connection time exceeded'
+	end
+	chr = getc
+	break if chr == nil
 	ret << chr
 	break if chr == ?\n
 	raise 'line exceed 1024 bytes' if ret.length >= 1024
@@ -68,17 +76,10 @@ class TPOPS
       ret == '' ? nil : ret
     end
 
-    login_time = Time::now.to_i
+    $login_time = Time::now.to_i
 
     @sock.write "+OK TPOPS ready. #{@apopkey}\r\n"
     loop do
-      select_ret = select([@sock], nil, nil, CommandTimeout)
-      if select_ret == nil then
-	exit
-      end
-      if Time::now.to_i - login_time > ConnectionKeepTime then
-	exit
-      end
       r = @sock.gets_limit
       if not r then break end
       r = r.chomp.sub(/\r$/, '')
@@ -160,6 +161,7 @@ class TPOPS
     if auth.authorized? then
       to_transaction auth
       msgs, size = @mailbox.stat
+      @start_mailbox = [msgs, size]
       ok "#{@user} has #{msgs} messages (#{size} octets)"
     else
       sleep 5
@@ -186,6 +188,7 @@ class TPOPS
       @user = arg[0]
       to_transaction auth
       msgs, size = @mailbox.stat
+      @start_mailbox = [msgs, size]
       ok "#{@user} has #{msgs} messages (#{size} octets)"
     else
       sleep 5
@@ -209,12 +212,23 @@ class TPOPS
 
   def write_log()
     if LogFile then
+      if @start_mailbox then
+	s_msgs, s_size = @start_mailbox
+      else
+	s_msgs, s_size = 0, 0
+      end
+      if @mailbox then
+	msgs, size = @mailbox.stat
+      else
+	msgs, size = 0, 0
+      end
       u = @user == nil ? '()' : @status == :TRANSACTION ? @user : "(#{@user})"
       File::open(LogFile, 'a') do |f|
 	f.syswrite @peer_addr + ' ' +
 	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
 	  Time::now.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
-	  u + "\n"
+	  u + s_msgs.to_s + ' ' + s_size.to_s +
+	  msgs.to_s + ' ' + size.to_s + "\n"
       end
     end
   end

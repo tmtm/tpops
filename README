@@ -1,0 +1,135 @@
+TPOPS - Tommy's POP Server
+
+TPOPS is POP3 server. This support RFC 1939 and is implemented by
+Ruby. Supported mailbox type is Maildir. The user account and mail
+message can be controled by MySQL table.
+
+[Requirement]
+
+  Ruby 1.6.x
+	http://www.ruby-lang.org
+
+  ruby-shadow 1.4.x	needed if using shadow password.
+	http://kt-www.jaist.ac.jp/~ttate/ruby/ruby-ext.html
+
+  bdb 0.3.1		needed if using APOP password.
+	http://moulon.inra.fr/ruby/bdb.html 
+
+  MySQL 3.23.x		needed if using MySQL authentication/mailbox.
+	http://www.mysql.com
+
+  MySQL/Ruby 2.4.x	needed if using MySQL.
+	http://www.tmtm.org/mysql/ruby/
+
+[Install]
+
+1. extract tarball.
+
+   ex)
+	# cd /usr/local
+	# tar xpvfz /tmp/tpops-0.4.6.tar.gz
+	# chown -R root:root tpops-0.4.6
+	# ln -s tpops-0.4.6 tpops
+
+2. make tpops.conf. The example and default value are in
+   tpops.conf.sample.
+
+    Port:		port number
+    Hostname:		my hostname
+    ConnectionKeepTime:	maximum connection keep time
+    CommandTimeout:	maximum time waiting command
+    WithInetd:		set true if using inetd
+    LogFile:		log filename (default: not logging)
+    ErrorFile:		error file (using if WithInetd = true)
+
+    AuthType:		authentication type ('Passwd' or 'MySQL')
+    MailboxType:	mailbox type ('Maildir' or 'MySQL')
+    MaildirUseFileSize:	set true if using file size as message size
+    MaildirExtended:    set true if using Maildir++ file size
+    PasswdLockDir:	directory keeping lock file (when AuthType = 'Passwd')
+
+   When AuthType or MailboxType is 'MySQL', set following parameters.
+
+    MySQL_Server:	MySQL server hostname
+    MySQL_User:		MySQL connection user
+    MySQL_Pass:		MySQL connection password
+    MySQL_DB:		MySQL database name
+    MySQLAuthQuery:	select query
+
+3. If AuthType or MailboxType is 'MySQL'
+
+   Create database for TPOPS and create table using sql.txt.
+
+    ex)
+	% mysqladmin create tpops
+	% mysql tpops < sql.txt
+
+[Start]
+
+1. If using inetd (default)
+
+   Set WithInetd = true in tpops.conf, and set /etc/inetd.conf:
+
+	pop3	stream	tcp	nowait	root	/usr/local/tpops/tpops	tpops
+
+   and kill -HUP <pid_of_inetd>.
+
+2. If not using inetd
+
+   Set WithInetd = false in tpops.conf, run /usr/local/tpops/tpops.
+
+[Starting option]
+
+  --domain domainname
+
+    If login name don't include any character of '@','%','+', attempt
+    to authenticate with 'username@domainname'.
+
+[Add user]
+
+1. If AuthType is 'Passwd' (default)
+
+  Add user to OS. If MailboxType is 'Maildir' then ~/Maildir is used.
+  If you use APOP, set APOPPasswdFile in tpops.conf. This file is
+  BDB::Hash that key is loginname and value is plain password. If APOP
+  is used, password is searched from this file.
+
+2. If AuthType is 'MySQL'
+
+  Add user information to user table:
+
+	uid		user ID (numeric)
+	login		POP login name
+	passwd		POP password
+	mail		mail address
+	maildir		Maildir (if using Maildir)
+
+[Entry mail]
+
+1. If MaildirType is 'Maildir' (default)
+
+  Use MTA that support Maildir such as Postfix, qmail.
+
+2. If MaildirType is 'MySQL'
+
+  Entry mail message to msg table:
+
+	id		message ID
+	uid		user ID
+	timestamp	message timestamp
+	header		header part
+	body		body part
+	size		message size
+
+[Log File]
+
+If set tpops.conf in tpops.conf, log to file when user logout. log
+format is:
+
+	IPaddr login-date login-time logout-date logout-time login-name
+
+[License]
+
+This program is under Ruby license.
+
+$Id: README,v 1.1 2002/11/07 03:20:11 tommy Exp $

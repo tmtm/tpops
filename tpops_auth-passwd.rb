@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.5 2002/03/21 06:00:06 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.6 2002/11/07 03:20:11 tommy Exp $
 
 require 'etc'
 
@@ -55,10 +55,22 @@ class TPOPS
 	if Time::now - File::stat(lockfile).mtime > ConnectionKeepTime then
 	  File::unlink lockfile
 	else
-	  return false
+	  pid = File::open(lockfile) do |f| f.gets end
+	  if pid =~ /^\d+$/ then
+	    begin
+	      Process::kill 0, pid.to_i
+	      return false
+	    rescue Errno::ESRCH
+	      File::unlink lockfile
+	    rescue
+	      return false
+	    end
+	  end
 	end
       end
-      File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600).close rescue return false
+      File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
+	f.puts $$.to_s
+      end rescue return false
       true
     end
 

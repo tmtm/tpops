@@ -1,4 +1,4 @@
-# $Id: tpops_auth-mysql.rb,v 1.2 2002/03/20 15:54:19 tommy Exp $
+# $Id: tpops_auth-mysql.rb,v 1.3 2002/11/07 03:20:11 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -37,7 +37,17 @@ class TPOPS
       m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
       begin
 	m.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{ConnectionKeepTime}")
-	m.query("insert ignore into locks (uid) values ('#{@uid}')")
+	pid, = m.query("select pid from locks where uid='#{m.quote @uid}'").fetch_row
+	if pid then
+	  begin
+	    Process::kill 0, pid.to_i
+	  rescue Errno::ESRCH
+	    m.query("delete from locks where uid='#{m.quote @uid}'")
+	  rescue
+	  end
+	end
+
+	m.query("insert ignore into locks (uid,pid) values ('#{@uid}','#{$$}')")
 	if m.affected_rows == 0 then
 	  return false
 	end
