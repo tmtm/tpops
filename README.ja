@@ -28,9 +28,9 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.4.7.tar.gz
-	# chown -R root:root tpops-0.4.7
-	# ln -s tpops-0.4.7 tpops
+	# tar xpfvz /tmp/tpops-0.4.8.tar.gz
+	# chown -R root:root tpops-0.4.8
+	# ln -s tpops-0.4.8 tpops
 
 2. tpops.conf を作成してください。サンプル(とデフォルト値)が 
    tpops.conf.sample にあります。
@@ -42,6 +42,7 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
     WithInetd:		inetd から起動する場合は true
     LogFile:		ログファイル名(未指定時は記録無し)
     ErrorFile:		エラー出力先ファイル(WithInetd が true の場合のみ)
+    SyslogFacility:	syslog ファシリティ(未指定時は syslog 出力なし)
 
     AuthType:		認証タイプ('Passwd' or 'MySQL')
     MailboxType:	メールボックスタイプ('Maildir' or 'MySQL')
@@ -171,6 +172,10 @@ tpops.conf で LogFile を指定すると、ログアウト時に指定したファイルにログ
 
 	接続元IP ログイン日 時刻 ログアウト日 時刻 ログイン名 ログイン時メッセージ数 ログイン時メッセージサイズ ログアウト時メッセージ数 ログアウト時メッセージサイズ
 
+SyslogFacility を指定すると、指定したファシリティで syslog にログを書
+き出します。SyslogFacility はファシリティを表わす数値です。
+Syslog::LOG_MAIL という形式でも指定できます。
+
 [Maildir 形式を使用する場合の注意]
 
 qmail や Postfix の Maildir 形式では、メッセージの改行コードが "\n" とし
@@ -204,6 +209,10 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 このプログラムは Ruby ライセンスに従います。
 
 [履歴]
+
+0.4.8	2002-11-20
+	・APOP認証失敗時にログにユーザ名が出力されないバグを修正
+	・syslog 機能追加
 
 0.4.7	2002-11-07
 	・CommandTimeout,ConnectionKeepTime タイマが働かないことがある
@@ -284,4 +293,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.30 2002/11/07 14:39:12 tommy Exp $
+$Id: README.ja,v 1.31 2002/11/19 16:11:11 tommy Exp $

@@ -1,12 +1,13 @@
-# $Id: tpops.conf.sample,v 1.5 2002/04/21 05:25:33 tommy Exp $
+# $Id: tpops.conf.sample,v 1.6 2002/11/19 16:11:11 tommy Exp $
 
 #Port = 110
 #Hostname = 'yourhost'
 #ConnectionKeepTime = 60*60		# 1 hour
 #CommandTimeout = 5*60			# 5 minutes
 #WithInetd = true			# set true if using with inetd
-#LogFile = '/var/log/tpops.log'
+#LogFile = '/var/log/tpops.log'		# default no logging
 #ErrorFile = '/var/log/tpops.err'	# used when WithInetd is true
+#SyslogFacility = Syslog::LOG_MAIL	# default nil (don't use syslog)
 
 #AuthType = 'Passwd'		# 'Passwd' or 'MySQL'
 #MailboxType = 'Maildir'	# 'Maildir' or 'MySQL'

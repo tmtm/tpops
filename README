@@ -27,9 +27,9 @@ message can be controled by MySQL table.
 
    ex)
 	# cd /usr/local
-	# tar xpvfz /tmp/tpops-0.4.7.tar.gz
-	# chown -R root:root tpops-0.4.7
-	# ln -s tpops-0.4.7 tpops
+	# tar xpvfz /tmp/tpops-0.4.8.tar.gz
+	# chown -R root:root tpops-0.4.8
+	# ln -s tpops-0.4.8 tpops
 
 2. make tpops.conf. The example and default value are in
    tpops.conf.sample.
@@ -41,6 +41,7 @@ message can be controled by MySQL table.
     WithInetd:		set true if using inetd
     LogFile:		log filename (default: not logging)
     ErrorFile:		error file (using if WithInetd = true)
+    SyslogFacility:	syslog facility (default: nil)
 
     AuthType:		authentication type ('Passwd' or 'MySQL')
     MailboxType:	mailbox type ('Maildir' or 'MySQL')
@@ -128,12 +129,21 @@ format is:
 
 	IPaddr login-date login-time logout-date logout-time login-name login-msgs login-msgsize logout-msgs logout-msgsize
 
+If set SyslogFacility, TPOPS write syslog. SyslogFacility is integer
+or symbol like Syslog::LOG_MAIL.
+
 [License]
 
 This program is under Ruby license.
+
+[History]
+
+0.4.8	2002-11-20
+	* Bug fix: don't output username on log when APOP.
+	* Add syslog.
 
 [Author]
 
 TOMITA Masahiro <tommy@tmtm.org>
 
-$Id: README,v 1.2 2002/11/07 14:39:12 tommy Exp $
+$Id: README,v 1.3 2002/11/19 16:11:11 tommy Exp $

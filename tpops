@@ -1,7 +1,8 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.33 2002/11/08 07:47:11 tommy Exp $
+# $Id: tpops,v 1.34 2002/11/19 16:11:11 tommy Exp $
 
 require 'getopts'
+require 'syslog'
 require 'socket'
 
 $LOAD_PATH.unshift File::dirname($0)
@@ -19,6 +20,7 @@ MaildirExtended = false unless defined? MaildirExtended
 WithInetd = true unless defined? WithInetd
 LogFile = nil unless defined? LogFile
 ErrorFile = '/var/log/tpops.err' unless defined? ErrorFile
+SyslogFacility = nil unless defined? SyslogFacility
 
 AuthType = 'Passwd' unless defined? AuthType
 require 'tpops_auth-'+AuthType.downcase
@@ -29,6 +31,7 @@ require 'tpops_mailbox-'+MailboxType.downcase
 class TPOPS
 
   def initialize()
+    Syslog::open(File::basename($0), nil, SyslogFacility) if SyslogFacility
     if WithInetd then
       $stderr = File::open(ErrorFile, 'a')
       begin
@@ -36,6 +39,7 @@ class TPOPS
       rescue
 	$stderr.puts Time::now.inspect
 	$stderr.flush
+	Syslog::err($!.to_s) if SyslogFacility
 	raise
       end
     else
@@ -50,6 +54,7 @@ class TPOPS
 	  rescue
 	    $stderr.puts Time::now.inspect
 	    $stderr.flush
+	    Syslog::err($!.to_s) if SyslogFacility
 	    raise
 	  end
 	end
@@ -66,6 +71,7 @@ class TPOPS
     @start_time = Time::now
     @peer_addr = sock_to_addr @sock
 
+    Syslog::info("connection from #{@peer_addr}") if SyslogFacility
     at_exit do
       write_log
     end
@@ -175,7 +181,9 @@ class TPOPS
       msgs, size = @mailbox.stat
       @start_mailbox = [msgs, size]
       ok "#{@user} has #{msgs} messages (#{size} octets)"
+      Syslog::info("login: #{@user} has #{msgs} messages (#{size} octets)") if SyslogFacility
     else
+      Syslog::notice("authentication failed: #{@user}") if SyslogFacility
       sleep 5
       err 'authentication failed'
       exit
@@ -202,9 +210,11 @@ class TPOPS
       msgs, size = @mailbox.stat
       @start_mailbox = [msgs, size]
       ok "#{@user} has #{msgs} messages (#{size} octets)"
+      Syslog::info("login: #{@user} has #{msgs} messages (#{size} octets)") if SyslogFacility
     else
       sleep 5
       err 'authentication failed'
+      Syslog::notice("authentication failed: #{@user}") if SyslogFacility
       exit
     end
   end  
@@ -212,6 +222,7 @@ class TPOPS
   def to_transaction(auth)
     if not auth.lock then
       err "cannot lock for #{@user}"
+      Syslog::notice("cannot lock for #{@user}") if SyslogFacility
       exit
     end
     at_exit do
@@ -223,6 +234,13 @@ class TPOPS
   end
 
   def write_log()
+    if SyslogFacility then
+      if @mailbox then
+	msgs, size = @mailbox.stat
+	Syslog::info("logout: #{@user} has #{msgs} messages (#{size} octets)")
+      end
+      Syslog::info("disconnect from #{@peer_addr}")
+    end
     if LogFile then
       if @start_mailbox then
 	s_msgs, s_size = @start_mailbox
