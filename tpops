@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.56 2004/06/10 13:46:57 tommy Exp $
+# $Id: tpops,v 1.57 2004/06/10 14:14:44 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -242,25 +242,25 @@ class TPOPS
       log_info "connect from #{@peer_addr}"
 
       def @sock.connect_time=(t)
-	@connect_time = t
+        @connect_time = t
       end
 
       def @sock.gets()
-	ret = ""
-	loop do
-	  if IO.select([self], nil, nil, $conf["command-timeout"].to_i) == nil then
-	    raise TPOPS::Error, "Command timeout"
-	  end
-	  if Time.now.to_i - @connect_time > $conf["connection-keep-time"].to_i then
-	    raise TPOPS::Error, "Connection time exceeded"
-	  end
-	  chr = getc
-	  break if chr == nil
-	  ret << chr
-	  break if chr == ?\n
-	  raise TPOPS::Error, "line exceed 1024 bytes" if ret.length >= 1024
-	end
-	ret == "" ? nil : ret
+        ret = ""
+        loop do
+          if IO.select([self], nil, nil, $conf["command-timeout"].to_i) == nil then
+            raise TPOPS::Error, "Command timeout"
+          end
+          if Time.now.to_i - @connect_time > $conf["connection-keep-time"].to_i then
+            raise TPOPS::Error, "Connection time exceeded"
+          end
+          chr = getc
+          break if chr == nil
+          ret << chr
+          break if chr == ?\n
+          raise TPOPS::Error, "line exceed 1024 bytes" if ret.length >= 1024
+        end
+        ret == "" ? nil : ret
       end
 
       def @sock.write(str)
@@ -275,43 +275,44 @@ class TPOPS
       ok "TPOPS ready. #{@apopkey}"
       begin
         catch :disconnect do
-	  loop do
-	    r = @sock.gets
-	    if not r then
+          loop do
+            r = @sock.gets
+            if not r then
               log_warn "connection closed unexpectedly"
               break
             end
-	    r = r.chomp
-	    log_debug "< #{r}"
-	    comm, arg = r.split(/ /, 2)
+            r = r.chomp
+            log_debug "< #{r}"
+            comm, arg = r.split(/ /, 2)
             args = arg ? arg.split(/ /) : []
-	    case @status
-	    when :AUTHORIZATION
-	      case comm.upcase
-	      when "QUIT";	comm_auth_quit args
-	      when "USER";	comm_user args
-	      when "PASS";	comm_pass [arg]
-	      when "APOP";	comm_apop args
-	      else
-		err "invalid command"
-	      end
-	    when :TRANSACTION
-	      case comm.upcase
-	      when "STAT";	comm_stat args
-	      when "LIST";	comm_list args
-	      when "RETR";	comm_retr args
-	      when "DELE";	comm_dele args
-	      when "NOOP";	comm_noop args
-	      when "RSET";	comm_rset args
-	      when "TOP" ;	comm_top args
-	      when "UIDL";	comm_uidl args
-	      when "QUIT";	comm_quit args
-	      else
-		err "invalid command"
-	      end
-	    end
-	  end
-	end
+            case @status
+            when :AUTHORIZATION
+              case comm.upcase
+              when "QUIT" then comm_auth_quit args
+              when "USER" then comm_user args
+              when "PASS" then comm_pass [arg]
+              when "APOP" then comm_apop args
+              else
+                err "invalid command"
+              end
+            when :TRANSACTION
+              case comm.upcase
+              when "STAT" then comm_stat args
+              when "LIST" then comm_list args
+              when "RETR" then comm_retr args
+              when "DELE" then comm_dele args
+              when "NOOP" then comm_noop args
+              when "RSET" then comm_rset args
+              when "TOP"  then comm_top args
+              when "UIDL" then comm_uidl args
+              when "LAST" then comm_last args
+              when "QUIT" then comm_quit args
+              else
+                err "invalid command"
+              end
+            end
+          end
+        end
       ensure
         @mailbox.unlock if @mailbox
         write_log rescue nil
@@ -333,8 +334,8 @@ class TPOPS
 
     def comm_auth_quit(arg)
       if arg.size != 0 then
-	err "too many arguments"
-	return
+        err "too many arguments"
+        return
       end
       ok "server signing off" rescue true
       throw :disconnect
@@ -342,62 +343,62 @@ class TPOPS
 
     def comm_user(arg)
       if @user then
-	err "invalid command"
-	return
+        err "invalid command"
+        return
       end
       if arg.size != 1 then
-	err "too few/many arguments"
-	return
+        err "too few/many arguments"
+        return
       end
       ok "password required"
       @user = arg[0]
       if $conf["domain"] and @user !~ /[@%\+]/ then
-	@user = @user+"@"+$conf["domain"]
+        @user = @user+"@"+$conf["domain"]
       end
     end
 
     def comm_pass(arg)
       if not @user then
-	err "invalid command"
-	return
+        err "invalid command"
+        return
       end
       if arg.size != 1 then
-	err "too few/many arguments"
-	return
+        err "too few/many arguments"
+        return
       end
 
       begin
         @auth = TPOPS.auth_class.new @user, arg[0]
-	to_transaction
+        to_transaction
       rescue TPOPS::Error
-	log_notice "authentication failed: #{@user}"
-	err "authentication failed"
-	throw :disconnect
+        log_notice "authentication failed: #{@user}"
+        err "authentication failed"
+        throw :disconnect
       end
     end
 
     def comm_apop(arg)
       unless TPOPS.auth_class.apop? then
-	err "APOP not supported"
-	return
+        err "APOP not supported"
+        return
       end
       if @user then
-	err "invalid command"
-	return
+        err "invalid command"
+        return
       end
       if arg.size != 2 then
-	err "too few/many arguments"
-	return
+        err "too few/many arguments"
+        return
       end
       @user = arg[0]
 
       begin
         @auth = TPOPS.auth_class.new arg[0], arg[1], @apopkey
-	to_transaction
+        to_transaction
       rescue TPOPS::Error
-	log_notice "authentication failed: #{@user}"
-	err "authentication failed"
-	throw :disconnect
+        log_notice "authentication failed: #{@user}"
+        err "authentication failed"
+        throw :disconnect
       end
     end  
 
@@ -418,26 +419,26 @@ class TPOPS
 
     def write_log()
       if @mailbox then
-	msgs, size = @mailbox.real_stat
+        msgs, size = @mailbox.real_stat
       else
-	msgs, size = 0, 0
+        msgs, size = 0, 0
       end
       if @status == :TRANSACTION then
-	log_info "logout: #{@user} has #{msgs} messages (#{size} octets)"
+        log_info "logout: #{@user} has #{msgs} messages (#{size} octets)"
       end
       if $conf["access-log"] then
-	if @start_mailbox then
-	  s_msgs, s_size = @start_mailbox
-	else
-	  s_msgs, s_size = 0, 0
-	end
-	u = @user == nil ? "()" : @status == :TRANSACTION ? @user : "(#{@user})"
-	File.open($conf["access-log"], "a") do |f|
-	  f.syswrite sprintf("%s %s %s %s %d %d %d %d\n",
+        if @start_mailbox then
+          s_msgs, s_size = @start_mailbox
+        else
+          s_msgs, s_size = 0, 0
+        end
+        u = @user == nil ? "()" : @status == :TRANSACTION ? @user : "(#{@user})"
+        File.open($conf["access-log"], "a") do |f|
+          f.syswrite sprintf("%s %s %s %s %d %d %d %d\n",
             @peer_addr, @start_time.strftime("%Y/%m/%d %H:%M:%S"),
             Time.now.strftime("%Y/%m/%d %H:%M:%S"),
             u, s_msgs, s_size, msgs, size)
-	end
+        end
       end
     end
 
@@ -457,8 +458,8 @@ class TPOPS
 
     def comm_stat(arg)
       if arg.size != 0 then
-	err "too many arguments"
-	return
+        err "too many arguments"
+        return
       end
       n, m = @mailbox.stat
       ok "#{n} #{m}"
@@ -466,41 +467,41 @@ class TPOPS
 
     def comm_list(arg)
       if arg.size == 0 then
-	n, m = @mailbox.stat
-	ok "#{n} messages (#{m} octets)"
-	@sock.sync = false
-	@mailbox.list_all.each do |n, m|
-	  @sock.write "#{n} #{m}\r\n"
-	end
-	@sock.sync = true
-	@sock.write ".\r\n"
+        n, m = @mailbox.stat
+        ok "#{n} messages (#{m} octets)"
+        @sock.sync = false
+        @mailbox.list_all.each do |n, m|
+          @sock.write "#{n} #{m}\r\n"
+        end
+        @sock.sync = true
+        @sock.write ".\r\n"
       elsif arg.size == 1 then
-	n, m = @mailbox.list(arg[0].to_i)
-	if n then
-	  ok "#{n} #{m}"
-	else
-	  err "no such message"
-	end
+        n, m = @mailbox.list(arg[0].to_i)
+        if n then
+          ok "#{n} #{m}"
+        else
+          err "no such message"
+        end
       else
-	err "too many arguments"
+        err "too many arguments"
       end
     end
 
     def comm_retr(arg)
       if arg.size != 1 then
-	err "too few/many arguments"
-	return
+        err "too few/many arguments"
+        return
       end
       m, size = @mailbox.list(arg[0].to_i)
       if not m then
-	err "no such message"
-	return
+        err "no such message"
+        return
       end
       ok "#{size} octets"
       @sock.sync = false
       @mailbox.retr(arg[0].to_i) do |line|
-	if line[0] == ?. then line[0,0] = "." end
-	@sock.write line
+        if line[0] == ?. then line[0,0] = "." end
+        @sock.write line
       end
       @sock.sync = true
       @sock.write ".\r\n"
@@ -508,28 +509,28 @@ class TPOPS
 
     def comm_dele(arg)
       if arg.size != 1 then
-	err "too few/many arguments"
-	return
+        err "too few/many arguments"
+        return
       end
       if @mailbox.dele(arg[0].to_i) then
-	ok "message deleted"
+        ok "message deleted"
       else
-	err "no such message"
+        err "no such message"
       end
     end
 
     def comm_noop(arg)
       if arg.size != 0 then
-	err "too many arguments"
-	return
+        err "too many arguments"
+        return
       end
       ok
     end
 
     def comm_rset(arg)
       if arg.size != 0 then
-	err "too many arguments"
-	return
+        err "too many arguments"
+        return
       end
       @mailbox.rset
       ok
@@ -537,18 +538,18 @@ class TPOPS
 
     def comm_top(arg)
       if arg.size != 2 then
-	err "too few/many arguments"
-	return
+        err "too few/many arguments"
+        return
       end
       if not @mailbox.list(arg[0].to_i) then
-	err "no such message"
-	return
+        err "no such message"
+        return
       end
       ok
       @sock.sync = false
       @mailbox.top(arg[0].to_i, arg[1].to_i) do |line|
-	if line[0] == ?. then line[0,0] = "." end
-	@sock.write line
+        if line[0] == ?. then line[0,0] = "." end
+        @sock.write line
       end
       @sock.sync = true
       @sock.write ".\r\n"
@@ -556,29 +557,38 @@ class TPOPS
 
     def comm_uidl(arg)
       if arg.size == 0 then
-	ok
-	@sock.sync = false
-	@mailbox.uidl_all.each do |m, id|
-	  @sock.write "#{m} #{id}\r\n"
-	end
-	@sock.sync = true
-	@sock.write ".\r\n"
+        ok
+        @sock.sync = false
+        @mailbox.uidl_all.each do |m, id|
+          @sock.write "#{m} #{id}\r\n"
+        end
+        @sock.sync = true
+        @sock.write ".\r\n"
       elsif arg.size == 1 then
-	m, id = @mailbox.uidl(arg[0].to_i)
-	if m then
-	  ok "#{m} #{id}"
-	else
-	  err "no such message"
-	end
+        m, id = @mailbox.uidl(arg[0].to_i)
+        if m then
+          ok "#{m} #{id}"
+        else
+          err "no such message"
+        end
       else
-	err "too many arguments"
+        err "too many arguments"
       end
+    end
+
+    def comm_last(arg)
+      if arg.size != 0 then
+        err "too many arguments"
+        return
+      end
+      n = @mailbox.last
+      ok "#{n}"
     end
 
     def comm_quit(arg)
       if arg.size != 0 then
-	err "too many arguments"
-	return
+        err "too many arguments"
+        return
       end
       @mailbox.commit
       ok "server signing off" rescue true

@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.5 2004/06/10 13:25:37 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.6 2004/06/10 14:14:44 tommy Exp $
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
@@ -13,9 +13,10 @@ class TPOPS
       @name, @size, @mtime = name, size, mtime
       @deleted = false
       @seen = false
+      @info = ""
     end
-    attr_reader :name, :size, :mtime, :seen
-    attr_writer :seen
+    attr_reader :name, :size, :mtime
+    attr_accessor :seen, :info
     def deleted?() @deleted end
     def delete() @deleted = true end
     def undelete() @deleted = false end
@@ -55,25 +56,27 @@ class TPOPS
       end
       files = []
       if File.directory? "#{maildir}/cur" then
-	Dir.foreach("#{maildir}/cur") do |f|
-	  if f =~ /^(\d+)\./ then
-	    mtime = $1.to_i
-	    p = "#{maildir}/cur/#{f}"
-	    if $conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
-	      size = $1.to_i
-	    elsif $conf["maildir-use-filesize"] == "yes" then
+        Dir.foreach("#{maildir}/cur") do |f|
+          if f =~ /^(\d+)\./ then
+            mtime = $1.to_i
+            p = "#{maildir}/cur/#{f}"
+            if $conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
+              size = $1.to_i
+            elsif $conf["maildir-use-filesize"] == "yes" then
               s = File.stat(p)
               size = s.size
             else
               r = File.open(p) do |f| f.read end
               size = r.gsub(/\n/, "\r\n").size
-	    end
-	    files << FileStat.new(p, size, mtime)
-	  end
-	end
+            end
+            file = FileStat.new(p, size, mtime)
+            file.info = p =~ /:2,(\w+)$/ ? $1 : ""
+            files << file
+          end
+        end
       end
       files.sort! do |a, b|
-	a.mtime <=> b.mtime
+        a.mtime <=> b.mtime
       end
       @files = {}
       files.each_index do |i|
@@ -123,10 +126,10 @@ class TPOPS
       cnt = 0
       size = 0
       @files.values.each do |f|
-	if not f.deleted? then
-	  size += f.size
-	  cnt += 1
-	end
+        if not f.deleted? then
+          size += f.size
+          cnt += 1
+        end
       end
       [cnt, size]
     end
@@ -134,9 +137,9 @@ class TPOPS
     def list_all()
       ret = []
       @files.keys.sort.each do |m|
-	if not @files[m].deleted? then
-	  ret << [m, @files[m].size]
-	end
+        if not @files[m].deleted? then
+          ret << [m, @files[m].size]
+        end
       end
       ret
     end
@@ -172,7 +175,8 @@ class TPOPS
 
     def rset()
       @files.values.each do |f|
-	f.undelete
+        f.undelete
+        f.seen = false
       end
     end
 
@@ -210,9 +214,9 @@ class TPOPS
     def uidl_all()
       ret = []
       @files.keys.sort.each do |m|
-	if not @files[m].deleted? then
-	  ret << [m, File.basename(@files[m].name).split(/:/)[0]]
-	end
+        if not @files[m].deleted? then
+          ret << [m, File.basename(@files[m].name).split(/:/)[0]]
+        end
       end
       ret
     end
@@ -222,17 +226,21 @@ class TPOPS
       [msg, File.basename(@files[msg].name).split(/:/)[0]]
     end
 
+    def last()
+      n = 0
+      @files.keys.each do |m|
+        n = [n, m].max if @files[m].info.include? "S" or @files[m].seen
+      end
+      n
+    end
+
     def commit()
       @files.values.each do |f|
-	if f.deleted? then
+        if f.deleted? then
           f.real_delete
-        elsif f.seen then
-          info = f.name =~ /:2,(\w+)$/ ? $1 : ""
-          unless info.include? "S" then
-            info << "S"
-            info = info.split(//).sort.join
-            File.rename(f.name, f.name.split(/:/)[0]+":2,"+info)
-          end
+        elsif f.seen and not f.info.include? "S" then
+          f.info = (f.info + "S").split(//).sort.join
+          File.rename(f.name, f.name.split(/:/)[0]+":2,"+f.info)
         end
       end
     end
@@ -241,10 +249,10 @@ class TPOPS
       cnt = 0
       size = 0
       @files.values.each do |f|
-	if f.deleted? != :real_delete then
-	  size += f.size
-	  cnt += 1
-	end
+        if f.deleted? != :real_delete then
+          size += f.size
+          cnt += 1
+        end
       end
       [cnt, size]
     end
