@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.4 2002/04/10 18:03:38 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.5 2002/04/21 05:25:33 tommy Exp $
 
 class TPOPS
 
@@ -29,15 +29,21 @@ class TPOPS
       [maildir+'cur', maildir+'new'].each do |path|
 	next unless File::directory? path
 	Dir::foreach(path) do |f|
-	  if f !~ /^\./ then
+	  if f =~ /^(\d+)\./ then
+	    mtime = $1.to_i
 	    p = path+'/'+f
-	    s = File::stat(p)
-	    size = s.size
-	    if not MaildirCRLF then
-	      r = File::open(p) do |f| f.read end
-	      size = r.gsub(/\n/, "\r\n").size
+	    if MaildirExtended and f =~ /,S=(\d+)/ then
+	      size = $1.to_i
+	    else
+	      if MaildirUseFileSize then
+		s = File::stat(p)
+		size = s.size
+	      else
+		r = File::open(p) do |f| f.read end
+		size = r.gsub(/\n/, "\r\n").size
+	      end
 	    end
-	    files << FileStat::new(p, size, s.mtime.to_i)
+	    files << FileStat::new(p, size, mtime)
 	  end
 	end
       end

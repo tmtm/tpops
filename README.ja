@@ -28,10 +28,11 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.4.1.tar.gz
-	# ln -s tpops-0.4.1 tpops
+	# tar xpfvz /tmp/tpops-0.4.2.tar.gz
+	# ln -s tpops-0.4.2 tpops
 
-2. tpops.conf を作成してください。サンプルが tpops.conf.sample にあります。
+2. tpops.conf を作成してください。サンプル(とデフォルト値)が 
+   tpops.conf.sample にあります。
 
     Port:		ポート番号
     Hostname:		自分のホスト名
@@ -43,7 +44,9 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
     AuthType:		認証タイプ('Passwd' or 'MySQL')
     MailboxType:	メールボックスタイプ('Maildir' or 'MySQL')
-    MaildirCRLF:	Maildir 形式の改行コードが "\r\n" かどうか(後述)
+    MaildirUseFileSize:	ファイルサイズをメッセージサイズとして使用する
+    MaildirExtended:    ファイルサイズの獲得に Maildir++ 形式のファイル名を
+			使用するかどうか
     PasswdLockDir:	AuthType が 'Passwd' の時のロックファイル保持
 			ディレクトリ
 
@@ -172,20 +175,15 @@ POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
 # qmail に付属の qmail-pop3d はこの処理をサボって、ファイルサイズを返し
 # ているため、RFC 的には正しくありません。
 
-標準的な Maildir 形式でなくても良いのであれば、改行コードを "\r\n" にし
-て Maildir のファイルに格納することで、このコストを低減することができま
-す。Postfix の場合は、添付の postfix-local.patch を適用することで、改行
-コードが "\r\n" になります。
+Maildir++ 形式のファイル名でメッセージを格納するメール配送エージェント
+を使用すれば、ファイル名にメッセージサイズが含められているので、ファイ
+ルの内容をチェックする必要がなく、高速に処理できます。その場合は 
+tpops.conf に「MaildirExtended = true」を設定してください。
 
-改行コードが "\r\n" の Maildir 形式を扱う場合には、tpops.conf ファイルに
-「MaildirCRLF = true」と記述してください。メッセージサイズはファイルサイ
-ズを用いるようになります。「MaildirCRLF = false」の場合は、メッセージファ
-イルを読んで、RFC 的に正しいサイズを返すようになります。
-
-「MaildirCRLF = false」の場合は、大量のメッセージがサーバ上にある場合、
-ログイン時の速度が遅くなります。速度を出すため、RFC 的に正しくないこと
-を承知で qmail-pop3d と同じ振る舞いをさせるには、やはり「MaildirCRLF =
-true」を設定してください。
+ファイル名が Maildir++ 形式でない場合、ファイルサイズをメッセージサイ
+ズとして使用することで(qmail と同じ手法)高速に処理できます。その場合は
+「MaildirUseFileSize = true」を設定してください。ただし、RFC 的には正
+しくないことを承知しておいてください。
 
 [注意]
 
@@ -193,7 +191,15 @@ true」を設定してください。
 ません。重要なメールデータが失われたとしても私は責任を負えません。十分テ
 ストした上でご使用ください。
 
+[ライセンス]
+
+このプログラムは Ruby ライセンスに従います。
+
 [履歴]
+
+0.4.2	2002-04-21
+	・MaildirCRLF → MaildirUseFileSize に変更
+	・Maildir++ 形式のファイル名を扱えるようにした
 
 0.4.1	2002-04-11
 	・大きなメールの RETR/TOP 時の速度とメモリ効率を向上
@@ -238,4 +244,4 @@ true」を設定してください。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.19 2002/04/10 18:03:38 tommy Exp $
+$Id: README.ja,v 1.20 2002/04/21 05:25:33 tommy Exp $

@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.23 2002/04/21 05:03:58 tommy Exp $
+# $Id: tpops,v 1.24 2002/04/21 05:25:33 tommy Exp $
 
 require 'socket'
 
@@ -11,7 +11,10 @@ Port = 110 unless defined? Port
 Hostname = `uname -n`.chomp unless defined? Hostname
 ConnectionKeepTime = 60*60 unless defined? ConnectionKeepTime
 CommandTimeout = 5*60 unless defined? CommandTimeout
-MaildirCRLF = false unless defined? MaildirCRLF
+unless defined? MaildirUseFileSize then
+  MaildirUseFilSize = defined? MaildirCRLF ? MaildirCRLF : false
+end
+MaildirExtended = false unless defined? MaildirExtended
 WithInetd = true unless defined? WithInetd
 LogFile = nil unless defined? LogFile
 ErrorFile = '/var/log/tpops.err' unless defined? ErrorFile

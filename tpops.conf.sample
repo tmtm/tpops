@@ -1,4 +1,4 @@
-# $Id: tpops.conf.sample,v 1.4 2002/03/21 06:00:06 tommy Exp $
+# $Id: tpops.conf.sample,v 1.5 2002/04/21 05:25:33 tommy Exp $
 
 #Port = 110
 #Hostname = 'yourhost'
@@ -10,7 +10,8 @@
 
 #AuthType = 'Passwd'		# 'Passwd' or 'MySQL'
 #MailboxType = 'Maildir'	# 'Maildir' or 'MySQL'
-#MaildirCRLF = false
+#MaildirUseFileSize = false
+#MaildirExtended = false	# Maildir++ format support
 #PasswdLockDir = '/var/tmp/tpops'
 #APOPPasswdFile = '/etc/tpops-apoppw'
 
