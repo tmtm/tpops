@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.9 2004/07/15 08:56:38 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.10 2004/09/03 05:32:49 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -81,7 +81,11 @@ class TPOPS
       files = read_maildir("#{maildir}/cur", false)
       files.concat read_maildir("#{maildir}/new", true)
       files.sort! do |a, b|
-        a.mtime <=> b.mtime
+        r = a.mtime <=> b.mtime
+        if r == 0 then
+          r = File.basename(a.name) <=> File.basename(b.name)
+        end
+        r
       end
       files.each_index do |i|
         @files[i+1] = files[i]
