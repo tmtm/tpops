@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.6.5.tar.gz">tpops-0.6.5.tar.gz</a>
       <li><a href="tpops-0.6.4.tar.gz">tpops-0.6.4.tar.gz</a>
       <li><a href="tpops-0.6.3.tar.gz">tpops-0.6.3.tar.gz</a>
       <li><a href="tpops-0.6.2.tar.gz">tpops-0.6.2.tar.gz</a>
@@ -69,9 +70,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.6.4.tar.gz
-# chown -R root:root tpops-0.6.4
-# ln -s tpops-0.6.4 tpops
+# tar xpfvz /tmp/tpops-0.6.5.tar.gz
+# chown -R root:root tpops-0.6.5
+# ln -s tpops-0.6.5 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -350,6 +351,16 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.6.5 2004-10-26
+      <dd>
+	<ul>
+	  <li>BUGFIX: 空行の入力で落ちる。
+	  <li>BUGFIX: connection-keep-time 超過時に落ちる。
+	  <li>重複ログイン時にログを出力するようにした。
+	  <li>ECONNRESET をハンドリングした。
+	  <li>
+	</ul>
+
       <dt>0.6.4 2004-10-08
       <dd>
 	<ul>
@@ -566,7 +577,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Thu Oct 21 10:16:16 JST 2004
+Last modified: Tue Oct 26 14:33:24 JST 2004
 <!-- hhmts end -->
     </p>
   </body>
