@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.8 2001/07/11 15:53:23 tommy Exp $
+# $Id: tpops,v 1.9 2001/12/15 09:03:32 tommy Exp $
 
 require 'socket'
 
@@ -170,9 +170,11 @@ class TPOPS
     if arg.size == 0 then
       n, m = stat
       ok "#{n} messages (#{m} octets)"
+      @sock.sync = false
       list_all.each do |n, m|
 	@sock.write "#{n} #{m}\r\n"
       end
+      @sock.sync = true
       @sock.write ".\r\n"
     elsif arg.size == 1 then
       n, m = list(arg[0].to_i)
@@ -197,6 +199,7 @@ class TPOPS
       return
     end
     ok "#{msg.size} octets"
+    @sock.sync = false
     msg.each do |line|
       if line[0] == ?. then line[0,0] = '.' end
       @sock.write line
@@ -204,6 +207,7 @@ class TPOPS
     if msg[-2..-1] != "\r\n"
       @sock.write "\r\n"
     end
+    @sock.sync = true
     @sock.write ".\r\n"
   end
 
@@ -247,6 +251,7 @@ class TPOPS
       return
     end
     ok
+    @sock.sync = false
     msg.each do |line|
       if line[0] == ?. then line[0,0] = '.' end
       @sock.write line
@@ -254,15 +259,18 @@ class TPOPS
     if msg[-2..-1] != "\r\n"
       @sock.write "\r\n"
     end
+    @sock.sync = true
     @sock.write ".\r\n"
   end
 
   def comm_uidl(arg)
     if arg.size == 0 then
       ok
+      @sock.sync = false
       uidl_all.each do |m, id|
 	@sock.write "#{m} #{id}\r\n"
       end
+      @sock.sync = true
       @sock.write ".\r\n"
     elsif arg.size == 1 then
       m, id = uidl(arg[0].to_i)
