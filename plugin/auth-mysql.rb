@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.6 2004/06/11 03:00:47 tommy Exp $
+# $Id: auth-mysql.rb,v 1.7 2004/07/15 13:01:42 tommy Exp $
 
 require 'md5'
 
@@ -8,6 +8,7 @@ $options.update({
   "mysql-passwd"	=> true,
   "mysql-db"		=> true,
   "mysql-auth-query"	=> [true, "select login,passwd,maildir from user where login=\"%s\""],
+  "mysql-crypt-passwd"	=> [/^(yes|no|crypt|sha)$/i, "no"],
 })
 
 class TPOPS
@@ -16,7 +17,7 @@ class TPOPS
     @@my = nil
 
     def self.apop?()
-      true
+      return $conf["mysql-crypt-passwd"] == "no"
     end
 
     def self.reset()
@@ -42,8 +43,31 @@ class TPOPS
       end
       raise TPOPS::Error, "authentication failed" unless res
       login, pw, maildir = res.fetch_row
-      if apop and pass != MD5.new(apop+pw).hexdigest or not apop and pass != pw then
-        raise TPOPS::Error, "authentication failed"
+      if apop then
+        if pass != MD5.new(apop+pw).hexdigest then
+          raise TPOPS::Error, "authentication failed"
+        end
+      elsif $conf["mysql-crypt-passwd"] == "no" then
+        if pass != pw then
+          raise TPOPS::Error, "authentication failed"
+        end
+      else
+        case $conf["mysql-crypt-passwd"]
+        when "crypt"
+          if pass.crypt(pw) != pw then
+            raise TPOPS::Error, "authentication failed"
+          end
+        when "sha"
+          require "digest/sha1"
+          if [Digest::SHA1.digest(pass)].pack("m").chomp != pw.sub(/^\{SHA\}/,"") then
+            raise TPOPS::Error, "authentication failed"
+          end
+        else
+          require "digest/sha1"
+          if pass.crypt(pw) != pw and [Digest::SHA1.digest(pass)].pack("m").chomp != pw.sub(/^\{SHA\}/,"") then
+            raise TPOPS::Error, "authentication failed"
+          end
+        end
       end
       @login, @maildir = login, maildir
     end
