@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.2 2002/02/07 16:12:55 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.3 2002/03/18 09:45:03 tommy Exp $
 
 require 'etc'
 
@@ -29,16 +29,14 @@ class TPOPS
 	end
 	return
       else
-	if pass.crypt(pw.passwd) == pw.passwd then
-	  @authorized = true
-	  return
-	end
 	if pw.passwd == 'x' then
 	  require 'shadow'
 	  sh = Shadow::Passwd.getspnam @login
-	  if sh and pass.crypt(sh.sp_pwdp) == sh.sp_pwdp then
+	  if sh and sh.sp_pwdp.length > 1 and pass.crypt(sh.sp_pwdp) == sh.sp_pwdp then
 	    @authorized = true
 	  end
+	elsif pass.crypt(pw.passwd) == pw.passwd then
+	  @authorized = true
 	end
       end
     end

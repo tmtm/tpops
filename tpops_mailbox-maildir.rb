@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.2 2002/02/26 16:25:55 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.3 2002/03/18 09:45:03 tommy Exp $
 
 class TPOPS
 
@@ -26,7 +26,8 @@ class TPOPS
     public
     def initialize(uid, maildir)
       files = []
-      [maildir+'/cur', maildir+'/new'].each do |path|
+      [maildir+'cur', maildir+'new'].each do |path|
+	next unless File::directory? path
 	Dir::foreach(path) do |f|
 	  if f !~ /^\./ then
 	    p = path+'/'+f
@@ -44,7 +45,7 @@ class TPOPS
 	a.mtime <=> b.mtime
       end
       @files.each_index do |i|
-	f.no = i+1
+	@files[i].no = i+1
       end
     end
 
@@ -79,7 +80,6 @@ class TPOPS
       if not exist? msg then return nil end
       r = File::open(@files[msg-1].name) do |f| f.read end
       r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
-      end
       r
     end
 
