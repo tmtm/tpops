@@ -1,4 +1,4 @@
-# $Id: tserver.rb,v 1.20 2004/03/01 04:58:30 tommy Exp $
+# $Id: tserver.rb,v 1.21 2004/03/02 12:49:53 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -150,7 +150,7 @@ class TServer
   end
 
   def terminate()
-    @to_child.each_value do |f| f.puts "exit" rescue nil end
+    @to_child.each_value do |f| f.close rescue nil end
   end
 
   def interrupt()
@@ -168,13 +168,6 @@ class TServer
     end
   end
 
-  def from_parent(str)
-    case str
-    when "exit"
-      exit_child
-    end
-  end
-
   def exit_child()
     @on_child_exit.call if defined? @on_child_exit
     exit!
@@ -184,8 +177,8 @@ class TServer
     to_child = IO.pipe
     to_parent = IO.pipe
     pid = fork do
-      @to_child.each_value do |f| f.close end
-      @from_child.each_value do |f| f.close end
+      @to_child.each_value do |f| f.close rescue nil end
+      @from_child.each_value do |f| f.close rescue nil end
       @from_parent = to_child[0]
       @to_parent = to_parent[1]
       to_child[1].close
@@ -213,12 +206,7 @@ class TServer
       break if tout and tout <= 0
       r, = IO.select([@socks, @from_parent].flatten, nil, nil, tout)
       break unless r
-      if r.include? @from_parent then
-        msg = @from_parent.gets
-        break unless msg
-        from_parent msg.chomp
-        next
-      end
+      break if r.include? @from_parent
       next unless lock.flock(File::LOCK_EX|File::LOCK_NB)
       r, = IO.select(@socks, nil, nil, 0)
       if r == nil then
