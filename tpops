@@ -1,15 +1,12 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.1 2001/05/06 14:48:33 tommy Exp $
+# $Id: tpops,v 1.2 2001/05/06 14:51:49 tommy Exp $
 
 require 'socket'
 load 'tpops_sub.rb'
 
-#Port = 110
-Port = 11000
-
+Port = 110
 Hostname = `uname -n`.chomp
-
-ConnectionKeepTime = 60*60	# 1 hour
+ConnectionKeepTime = 60*60
 
 class TPOPS
 
