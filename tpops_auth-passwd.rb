@@ -1,27 +1,31 @@
-# $Id: tpops_auth-passwd.rb,v 1.12 2004/05/31 18:02:08 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.13 2004/06/08 04:10:52 tommy Exp $
 
 require 'etc'
+
+$options.update({
+  "apop-passwd-file"	=> true,
+  "passwd-lock-dir"	=> [true, "/var/run/tpops"],
+  "maildir"		=> [true, "Maildir"],
+})
 
 class TPOPS
   class Auth
 
     def Auth.apop?()
-      defined? $apop_passwd_file
+      defined? $conf["apop-passwd-file"]
     end
 
     def initialize(user, pass, apop=nil)
-      $passwd_lock_dir = '/var/run/tpops' unless defined? $passwd_lock_dir and $passwd_lock_dir
-      $maildir = "Maildir" unless defined? $maildir and $maildir
       begin
 	pw = Etc.getpwnam user
       rescue ArgumentError
 	return
       end
-      @login, @uid, @maildir = pw.name, pw.uid, pw.dir+"/"+$maildir+"/"
+      @login, @uid, @maildir = pw.name, pw.uid, pw.dir+"/"+$conf["maildir"]+"/"
       if apop then
         require 'dbm'
 	require 'md5'
-	pw = DBM.open($apop_passwd_file, 0600)[@login]
+	pw = DBM.open($conf["apop-passwd-file"], 0600)[@login]
 	return unless pw
 	if pass == MD5.new(apop+pw).hexdigest then
 	  @authorized = true
@@ -53,8 +57,8 @@ class TPOPS
     attr_reader :login, :uid, :maildir
 
     def lock()
-      Dir.mkdir $passwd_lock_dir, 0700 unless File.exists? $passwd_lock_dir
-      lockfile = "#{$passwd_lock_dir}/#{@uid}"
+      Dir.mkdir $conf["passwd-lock-dir"], 0700 unless File.exists? $conf["passwd-lock-dir"]
+      lockfile = "#{$conf["passwd-lock-dir"]}/#{@uid}"
       if File.exist? lockfile then
         begin
           if Time.now.to_i - File.mtime(lockfile).to_i > $connection_keep_time then

@@ -1,4 +1,9 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.11 2004/05/31 18:02:08 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.12 2004/06/08 04:10:52 tommy Exp $
+
+$options.update({
+  "maildir-use-filesize"	=> nil,
+  "maildir-extended"		=> true,
+})
 
 class TPOPS
 

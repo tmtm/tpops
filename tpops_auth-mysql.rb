@@ -1,13 +1,20 @@
-# $Id: tpops_auth-mysql.rb,v 1.6 2004/03/18 16:14:36 tommy Exp $
+# $Id: tpops_auth-mysql.rb,v 1.7 2004/06/08 04:10:52 tommy Exp $
 
 require 'mysql'
 require 'md5'
+
+$options.update({
+  "mysql-server"	=> true,
+  "mysql-user"		=> true,
+  "mysql-passwd"	=> true,
+  "mysql-db"		=> true,
+  "mysql-auth-query"	=> [true, "select login,passwd,uid,maildir from user where login=\"%s\""],
+})
 
 class TPOPS
   class Auth
 
     @@my = nil
-    $mysql_auth_query = 'select login,passwd,uid,maildir from user where login="%s"' unless defined? $mysql_auth_query
 
     def Auth::apop?()
       true
@@ -15,17 +22,13 @@ class TPOPS
 
     def my()
       if @@my == nil then
-	@@my = Mysql::new($mysql_server, $mysql_user, $mysql_pass, $mysql_db)
+	@@my = Mysql::new($conf["mysql-server"], $conf["mysql-user"], $conf["mysql-passwd"], $conf["mysql-db"])
       end
       @@my
     end
 
     def initialize(user, pass, apop=nil)
-      if $mysql_auth_query.is_a? Array
-	queries = $mysql_auth_query
-      else
-	queries = [$mysql_auth_query]
-      end
+      queries = [$conf["mysql-auth-query"]]
       res = nil
       queries.each do |qu|
 	res = my.query(sprintf(qu, my.quote(user)))
@@ -54,9 +57,9 @@ class TPOPS
     attr_reader :login, :uid, :maildir
 
     def lock()
-      my.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{$connection_keep_time}")
+      my.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{$conf["connection-keep-time"]}")
       pid, host = my.query("select pid,host from locks where uid='#{my.quote @uid}'").fetch_row
-      if pid and host == $hostname then
+      if pid and host == $conf["hostname"] then
 	begin
 	  Process::kill 0, pid.to_i
 	  return false
@@ -67,7 +70,7 @@ class TPOPS
 	end
       end
 
-      my.query("insert ignore into locks (uid,pid,host) values ('#{my.quote @uid}','#{$$}','#{my.quote $hostname}')")
+      my.query("insert ignore into locks (uid,pid,host) values ('#{my.quote @uid}','#{$$}','#{my.quote $conf["hostname"]}')")
       if my.affected_rows == 0 then
 	return false
       end

@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.49 2004/06/06 15:27:57 tommy Exp $
+# $Id: tpops,v 1.50 2004/06/08 04:10:52 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -73,7 +73,7 @@ class TPOPS
       TServer.logging = $conf["debug"] ? (Syslog.opened? ? :syslog : true) : nil
       if $conf["port"] != @port then
         ts.close if ts
-        ts = TServer.new($conf["port"])
+        ts = TServer.new(*($conf["port"].split(/:/)))
         @port = $conf["port"]
       end
 
@@ -621,9 +621,10 @@ begin
   else
     log_notice "tpops daemon start"
     tpops.start
-    log_notice "tpops daemon stop"
   end
 rescue
   log_err "#{$@[0]}: #{$!}"
   raise
+ensure
+  log_notice "tpops daemon stop" unless $conf["inetd"]
 end

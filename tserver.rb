@@ -1,4 +1,4 @@
-# $Id: tserver.rb,v 1.23 2004/03/21 13:14:00 tommy Exp $
+# $Id: tserver.rb,v 1.24 2004/05/20 02:08:23 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -36,7 +36,15 @@ class TServer
     def cleanup()
       new = Children.new
       self.each do |c|
-        new << c unless c.exit
+        begin
+          if Process.waitpid(c.pid, Process::WNOHANG) then
+            TServer.log "p: catch exited child #{c.pid}"
+            c.exit
+          else
+            new << c
+          end
+        rescue Errno::ECHILD
+        end
       end
       self.replace new
     end
@@ -45,42 +53,64 @@ class TServer
   class Child
     def initialize(pid, from, to)
       @pid, @from, @to = pid, from, to
-      @status = :new
-      @exit = false
+      @status = :idle
     end
-    # status is one of :new, :idle, :connect, :close
+    # status is one of :idle, :connect, :close, :exit
 
-    attr_accessor :pid, :from, :to, :exit
+    attr_accessor :pid, :from, :to
 
     def event(s)
-      case s
-      when "connect" then @status = :connect
-      when "disconnect" then @status = :idle
-      when "close" then @status = :close
+      if s == nil then
+        TServer.log "p: child #{pid} terminated"
+        self.exit
       else
-        $stderr.puts "unknown status: #{s}"
+        case s.chomp
+        when "connect" then @status = :connect
+        when "disconnect" then @status = :idle
+        else
+          $stderr.puts "unknown status: #{s}"
+        end
       end
     end
 
     def close()
-      @from.close unless @from.closed?
       @to.close unless @to.closed?
       @status = :close
     end
 
+    def exit()
+      @from.close unless @from.closed?
+      @to.close unless @to.closed?
+      @status = :exit
+    end
+
     def idle?()
-      @status == :new or @status == :idle
+      @status == :idle
     end
 
     def active?()
-      @exit == false and (@status == :new or @status == :idle or @status == :connect)
+      @status == :idle or @status == :connect
     end
-
   end
 
   @@children = Children.new
   @@already_setup_signal = false
-  @@already_setup_sigchld = false
+  @@logging = false
+
+  def self.logging=(f)
+    @@logging = f
+  end
+
+  def self.log(msg)
+    return unless @@logging
+    require "syslog"
+    if @@logging == :syslog and Syslog.opened? then
+      Syslog.info("tserver: %s", msg)
+    else
+      $stderr.puts "#{Time.now.strftime("%Y-%m-%d %H:%M:%S")} #{File.basename $0}/tserver[#{$$}] #{msg}\n"
+      $stderr.flush
+    end
+  end
 
   def initialize(*args)
     @handle_signal = true
@@ -105,6 +135,7 @@ class TServer
     return if @@already_setup_signal
     @old_trap = {}
     @old_trap["TERM"] = trap "TERM" do
+      TServer.log "p: SIGTERM received"
       terminate
       if @old_trap["TERM"].is_a? Proc then
 	@old_trap["TERM"].call
@@ -113,10 +144,12 @@ class TServer
       end
     end
     @old_trap["HUP"] = trap "HUP" do
+      TServer.log "p: SIGHUP received"
       terminate
       @old_trap["HUP"].call if @old_trap["HUP"].is_a? Proc
     end
     @old_trap["INT"] = trap "INT" do
+      TServer.log "p: SIGINT received"
       interrupt
       if @old_trap["INT"].is_a? Proc then
 	@old_trap["INT"].call
@@ -157,44 +190,34 @@ class TServer
       raise "block required"
     end
     setup_signal_handler if @handle_signal
-    unless @@already_setup_sigchld then
-      old_chld_trap = trap "CHLD" do
-        @@children.active.each do |c|
-          Process.waitpid(c.pid, Process::WNOHANG) rescue nil
-        end
-        old_chld_trap.call if old_chld_trap.is_a? Proc
-      end
-      @@already_setup_sigchld = true
-    end
     (@min_servers-@@children.size).times do
       make_child block
     end
     @flag = :in_loop
     while @flag == :in_loop do
-      r, = IO.select(@@children.fds, nil, nil, nil)
+      log = false
+      r, = IO.select(@@children.fds, nil, nil, 1)
       if r then
+        log = true
         r.each do |f|
           c = @@children.by_fd f
-          l = f.gets
-          if l then
-            c.event l.chomp
-          else
-            c.exit = true
-          end
+          c.event f.gets
         end
       end
-      @@children.cleanup
+      as = @@children.active.size
+      @@children.cleanup if @@children.size > as
       n = 0
-      if @@children.size < @min_servers then
-        n = @min_servers - @@children.size
+      if as < @min_servers then
+        n = @min_servers - as
       else
         if @@children.idle.size <= 2 then
           n = 2
         end
       end
-      if @@children.size + n > @max_servers then
-        n = @max_servers - @@children.size
+      if as + n > @max_servers then
+        n = @max_servers - as
       end
+      TServer.log "p: max:#{@max_servers}, min:#{@min_servers}, cur:#{as}, idle:#{@@children.idle.size}: new:#{n}" if n > 0 or log
       n.times do
 	make_child block
       end
@@ -218,7 +241,7 @@ class TServer
 
   def terminate()
     @@children.each do |c|
-      c.to.close unless c.to.closed?
+      c.close
     end
   end
 
@@ -229,29 +252,35 @@ class TServer
   private
 
   def exit_child()
+    TServer.log "c: exit"
     @on_child_exit.call if defined? @on_child_exit
     exit!
   end
 
   def make_child(block)
+    TServer.log "p: make child"
     to_child = IO.pipe
     to_parent = IO.pipe
     pid = fork do
-      @@children.map{|c| c.close}
+      @@children.map do |c|
+        c.from.close unless c.from.closed?
+        c.to.close unless c.to.closed?
+      end
       @from_parent = to_child[0]
       @to_parent = to_parent[1]
       to_child[1].close
       to_parent[0].close
       child block
     end
+    TServer.log "p: child pid #{pid}"
     @@children << Child.new(pid, to_parent[0], to_child[1])
     to_child[0].close
     to_parent[1].close
   end
 
   def child(block)
+    TServer.log "c: start"
     trap "HUP", "SIG_DFL"
-    trap "CHLD", "SIG_DFL"
     trap "INT", "SIG_DFL"
     trap "TERM" do exit_child end
     @on_child_start.call if defined? @on_child_start
@@ -272,9 +301,11 @@ class TServer
       end
       s = r[0].accept
       lock.flock(File::LOCK_UN)
+      TServer.log "c: connect from client"
       @to_parent.syswrite "connect\n"
       block.call(s)
       s.close unless s.closed?
+      TServer.log "c: disconnect from client"
       @to_parent.syswrite "disconnect\n" rescue nil
       cnt += 1
       last_connect = Time.now
