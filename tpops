@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.48 2004/06/06 08:10:41 tommy Exp $
+# $Id: tpops,v 1.49 2004/06/06 15:27:57 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -70,6 +70,7 @@ class TPOPS
     while loop do
       load_config
 
+      TServer.logging = $conf["debug"] ? (Syslog.opened? ? :syslog : true) : nil
       if $conf["port"] != @port then
         ts.close if ts
         ts = TServer.new($conf["port"])
@@ -120,10 +121,10 @@ class TPOPS
         @pid_file = $conf["pid-file"]
       end
 
-      ts.min_servers = $conf["min-servers"]
-      ts.max_servers = $conf["max-servers"]
-      ts.max_use = $conf["max-use"]
-      ts.max_idle = $conf["max-idle"]
+      ts.min_servers = $conf["min-servers"].to_i
+      ts.max_servers = $conf["max-servers"].to_i
+      ts.max_use = $conf["max-use"].to_i
+      ts.max_idle = $conf["max-idle"].to_i
 
       ts.start do |conn|
         begin
