@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.55 2004/06/10 13:42:58 tommy Exp $
+# $Id: tpops,v 1.56 2004/06/10 13:46:57 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -284,13 +284,13 @@ class TPOPS
 	    r = r.chomp
 	    log_debug "< #{r}"
 	    comm, arg = r.split(/ /, 2)
-            args = arg.split(/ /)
+            args = arg ? arg.split(/ /) : []
 	    case @status
 	    when :AUTHORIZATION
 	      case comm.upcase
 	      when "QUIT";	comm_auth_quit args
 	      when "USER";	comm_user args
-	      when "PASS";	comm_pass arg
+	      when "PASS";	comm_pass [arg]
 	      when "APOP";	comm_apop args
 	      else
 		err "invalid command"
