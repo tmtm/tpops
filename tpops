@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.59 2004/06/10 17:14:03 tommy Exp $
+# $Id: tpops,v 1.60 2004/06/11 02:16:24 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -20,7 +20,7 @@ $options = {
   "debug"		=> nil,
   "version"		=> nil,
   "inetd"		=> nil,
-  ["port", "p"]		=> [/\A\d+\Z/, 110],
+  ["port", "p"]		=> [/(^|:)\d+$/, 110],
   ["user", "u"]		=> true,
   ["group", "g"]	=> true,
   "hostname"		=> [true, `uname -n`.chomp],
