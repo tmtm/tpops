@@ -1,20 +1,18 @@
 TPOPS - Tommy's POP Server
 
-TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
-されています。POP ログイン名やメールアドレスなどのユーザ情報、メール本文
-は MySQL のテーブルで管理されます。メールは Maildir 形式でディスク上に置
-くこともできます。
+TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
+ます。サポートされているメールボックスは Maildir 形式です。POP ログイン
+名やメールアドレスなどのユーザ情報、メール本文は MySQL のテーブルで管理
+することもできます。
 
 [必要なもの]
 
   Ruby 1.6.x
-  MySQL 3.23.x
-  MySQL/Ruby 2.4.x
+
+  MySQL 3.23.x		オプション
+  MySQL/Ruby 2.4.x	MySQL使用時に必要
 
 [インストール]
-
-0. MySQL をインストールして、TPOPS 用のデータベースを作成しておいてくだ
-   さい。
 
 1. tpops, tpops_sub.rb, tpops_maildir.rb, tpops.conf を同じディレクトリ
    に置いてください。
@@ -161,4 +159,4 @@ POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.11 2002/02/06 17:55:10 tommy Exp $
+$Id: README.ja,v 1.12 2002/02/06 17:58:02 tommy Exp $
