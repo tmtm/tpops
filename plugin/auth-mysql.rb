@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.5 2004/06/10 17:14:04 tommy Exp $
+# $Id: auth-mysql.rb,v 1.6 2004/06/11 03:00:47 tommy Exp $
 
 require 'md5'
 
@@ -20,7 +20,7 @@ class TPOPS
     end
 
     def self.reset()
-      @@my.close
+      @@my.close if @@my
       @@my = nil
     end
 
