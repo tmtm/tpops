@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.12 2004/10/08 14:50:25 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.13 2004/10/26 05:22:24 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -130,7 +130,7 @@ class TPOPS
           retry
         end
         Dir.glob(f+".*") do |i|
-          if i.split(/\./)[-1].to_i < Time.now.to_i-$conf["connection-keep-time"] then
+          if i.split(/\./)[-1].to_i < Time.now.to_i-$conf["connection-keep-time"].to_i then
             log_notice "#{i}: lock is released"
             File.rename i, f rescue nil
             retry
