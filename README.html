@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.6.3.tar.gz">tpops-0.6.3.tar.gz</a>
       <li><a href="tpops-0.6.2.tar.gz">tpops-0.6.2.tar.gz</a>
       <li><a href="tpops-0.6.1.tar.gz">tpops-0.6.1.tar.gz</a>
       <li><a href="tpops-0.6.tar.gz">tpops-0.6.tar.gz</a>
@@ -65,9 +66,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.6.2.tar.gz
-# chown -R root:root tpops-0.6.2
-# ln -s tpops-0.6.2 tpops
+# tar xpfvz /tmp/tpops-0.6.3.tar.gz
+# chown -R root:root tpops-0.6.3
+# ln -s tpops-0.6.3 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -342,6 +343,13 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.6.3 2004-09-23
+      <dd>
+	<ul>
+	  <li>BUGFIX: group オプション指定時にエラーになる。
+	  <li>BUGFIX: ロックファイルの作成に失敗すると無限ループになる。
+	</ul>
+
       <dt>0.6.2 2004-09-05
       <dd>
 	<ul>
@@ -540,7 +548,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Sun Sep  5 01:58:00 JST 2004
+Last modified: Thu Sep 23 01:30:18 JST 2004
 <!-- hhmts end -->
     </p>
   </body>
