@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.64 2004/10/08 14:56:05 tommy Exp $
+# $Id: tpops,v 1.65 2004/10/26 05:23:24 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -253,21 +253,31 @@ class TPOPS
       end
 
       def @sock.gets()
-        ret = ""
-        loop do
+        @gets_safe_buf = [] unless @gets_safe_buf
+        @gets_safe_unterminated_str = "" unless @gets_safe_unterminated_str
+        if @gets_safe_buf.length > 0 then
+          return @gets_safe_buf.shift
+        end
+        str = @gets_safe_unterminated_str
+        @gets_safe_unterminated_str = ""
+        until str.include? "\n" do
           if IO.select([self], nil, nil, $conf["command-timeout"].to_i) == nil then
             raise TPOPS::Error, "Command timeout"
           end
-          if Time.now.to_i - @connect_time > $conf["connection-keep-time"].to_i then
-            raise TPOPS::Error, "Connection time exceeded"
+          begin
+            str << self.sysread(4096)
+          rescue EOFError, Errno::ECONNRESET
+            return nil if str.empty?
+            break
           end
-          chr = getc
-          break if chr == nil
-          ret << chr
-          break if chr == ?\n
-          raise TPOPS::Error, "line exceed 1024 bytes" if ret.length >= 1024
         end
-        ret == "" ? nil : ret
+        @gets_safe_buf = str.split /^/
+        unless @gets_safe_buf[-1][-1] == ?\n then
+          @gets_safe_unterminated_str = @gets_safe_buf.pop
+        end
+        ret = @gets_safe_buf.shift
+        raise TPOPS::Error, "line exceed 1024 bytes" if ret.length >= 1024
+        ret
       end
 
       def @sock.write(str)
@@ -291,6 +301,7 @@ class TPOPS
             r = r.chomp
             log_debug "< #{r}"
             comm, arg = r.split(/ /, 2)
+            next unless comm
             args = arg ? arg.split(/ /) : []
             case @status
             when :AUTHORIZATION
@@ -413,6 +424,7 @@ class TPOPS
       begin
         @mailbox = TPOPS.mailbox_class.new @auth.maildir
       rescue TPOPS::Error
+        log_err "#{$!}"
         err $!.to_s
         throw :disconnect
       end
