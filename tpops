@@ -1,11 +1,11 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.4 2001/05/07 04:19:51 tommy Exp $
+# $Id: tpops,v 1.5 2001/05/19 03:52:40 tommy Exp $
 
 require 'socket'
 
 Dir = $0.sub(/[^\/]*$/, '')
 load Dir+'tpops_sub.rb'
-load Dir+'/tpops.conf'
+load Dir+'tpops.conf'
 
 class TPOPS
 
