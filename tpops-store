@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-store,v 1.8 2001/07/11 16:06:26 tommy Exp $
+# $Id: tpops-store,v 1.9 2002/02/02 16:47:43 tommy Exp $
 
 require 'mysql'
 
@@ -9,8 +9,8 @@ EX_NOUSER = 67
 EX_CANTCREAT = 73
 EX_TEMPFAIL = 75
 
-Dir = $0.sub(/[^\/]*$/, '')
-load Dir+'tpops.conf'
+ScriptDir = File::dirname($0) + '/'
+load ScriptDir+'tpops.conf'
 
 if ARGV.size < 1 then
   $stderr.puts "usage: tpops-store mail_address [files...]"

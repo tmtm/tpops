@@ -1,10 +1,10 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-useradd,v 1.4 2001/07/11 07:53:59 tommy Exp $
+# $Id: tpops-useradd,v 1.5 2002/02/02 16:47:43 tommy Exp $
 
 require 'mysql'
 
-Dir = $0.sub(/[^\/]*$/, '')
-load Dir+'tpops.conf'
+ScriptDir = File::dirname($0) + '/'
+load ScriptDir+'tpops.conf'
 
 if ARGV.size < 3 then
   $stderr.puts "usage: tpops-useradd login passwd mail_address [maildir]"
