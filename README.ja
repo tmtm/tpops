@@ -28,9 +28,9 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.5.1.tar.gz
-	# chown -R root:root tpops-0.5.1
-	# ln -s tpops-0.5.1 tpops
+	# tar xpfvz /tmp/tpops-0.5.2.tar.gz
+	# chown -R root:root tpops-0.5.2
+	# ln -s tpops-0.5.2 tpops
 
 2. tpops.conf を作成してください。サンプルが tpops.conf.sample にあり
    ます。
@@ -95,6 +95,13 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
     $maildir_use_filesize (true)
 	ファイルサイズをメッセージサイズとして使用するかどうか。
+
+    $user (nil)
+	プロセスのユーザ名。Passwd 認証時には、passwd 認証に root 権限
+	が必要なシステムでは、このパラメータを設定すると認証できません。
+
+    $group (nil)
+	プロセスのグループ名。
 
   [$auth_type == 'Passwd' 時に有効なパラメータ]
 
@@ -190,13 +197,13 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
 [シグナル]
 
-SIGTERM を受信すると終了します。
+SIGTERM を受信すると終了します。処理中の子プロセスは処理が終わるまで終
+了しません。
 
-SIGHUP を受信すると、子プロセスを強制的に終了させ、tpops.conf を再読み
-込みします。
+SIGHUP を受信すると、子プロセスを終了させ、tpops.conf を再読み込みしま
+す。処理中の子プロセスは処理が終わるまで終了しません。
 
-SIGUSR1 を受信すると、子プロセスを終了させ、tpops.conf を再読み込みし
-ます。処理中の子プロセスは処理が終わるまで終了しません。
+SIGINT を受信すると終了します。
 
 [ユーザ登録]
 
@@ -274,6 +281,11 @@ false」を設定してください。ただし、メッセージサイズを調べるために、メッ
 このプログラムは Ruby ライセンスに従います。
 
 [履歴]
+
+0.5.2	2003-01-24
+	・スタンドアロン時に間違った ID を pid_file に記録していたバグを修正
+	・SIGTERM, SIGHUP で処理中の子プロセスを終了させないように変更
+	・SIGINT で子プロセスを強制的に終了させるように変更
 
 0.5.1	2003-01-18
 	・クライアント切断時にロックが残ったままになることがあるバグを修正
@@ -375,4 +387,4 @@ false」を設定してください。ただし、メッセージサイズを調べるために、メッ
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.34 2003/01/18 09:50:25 tommy Exp $
+$Id: README.ja,v 1.35 2003/01/23 22:27:11 tommy Exp $

@@ -40,13 +40,18 @@ def load_config()
   $user = $OPT_user if $OPT_user
   $group = $OPT_group if $OPT_group
   if $user then
-    $uid = $user =~ /^\d+$/ ? $user.to_i : Etc::getpwnam($user).uid
+    if $user.is_a? Integer then
+      $uid = $user
+    else
+      $uid = $user =~ /^\d+$/ ? $user.to_i : Etc::getpwnam($user).uid
+    end
   end
   if $group then
-    $gid = $group =~ /^\d+$/ ? $group.to_i : Etc::getgrnam($group).gid
-  end
-  if $pid_file then
-    File::open($pid_file, "w") do |f| f.puts $$ end
+    if $group.is_a? Integer then
+      $gid = $group
+    else
+      $gid = $group =~ /^\d+$/ ? $group.to_i : Etc::getgrnam($group).gid
+    end
   end
 end
 
@@ -79,8 +84,9 @@ class TPOPS
 	$stderr.reopen f
       end
       begin
-	Process::uid = $user if $user
-	Process::gid = $group if $group
+	Process::uid = $uid if $uid
+	Process::euid = $uid if $uid
+	Process::gid = $gid if $gid
 	Conn::new(Socket::for_fd $stdin.fileno)
       rescue
 	log_err $!.to_s
@@ -100,9 +106,13 @@ class TPOPS
 	  $stderr.reopen f
 	end
       end
+      if $pid_file then
+	File::open($pid_file, "w") do |f| f.puts $$ end
+      end
       ts = TServer::new($port)
       ts.on_child_start = Proc::new do
 	Process::uid = $uid if $uid
+	Process::euid = $uid if $uid
 	Process::gid = $gid if $gid
       end
       ts.min_servers = $min_servers
@@ -118,6 +128,9 @@ class TPOPS
 	  File::open($error_log, 'a') do |f|
 	    $stderr.reopen f
 	  end
+	end
+	if $pid_file then
+	  File::open($pid_file, "w") do |f| f.puts $$ end
 	end
 	old_trap.call
       end
@@ -482,7 +495,7 @@ unless getopts(nil, 'f:', 'domain:', 'fg', 'port:', 'debug', 'version', 'inetd',
   raise 'unknown options'
 end
 if $OPT_version then
-  puts "TPOPS version 0.5.0"
+  puts "TPOPS version 0.5.2"
   exit
 end
 load_config

@@ -1,4 +1,4 @@
-# $Id: tserver.rb,v 1.9 2002/12/03 12:11:24 tommy Exp $
+# $Id: tserver.rb,v 1.1 2002/12/03 16:26:34 tommy Exp $
 
 require 'socket'
 
@@ -23,7 +23,7 @@ class TServer
       end
     end
     @old_trap['TERM'] = trap 'TERM' do
-      Process::kill 'TERM', *@children rescue nil
+      @to_child.each_value do |f| f.puts 'exit' end
       if @old_trap['TERM'] then
 	@old_trap['TERM'].call
       else
@@ -31,12 +31,20 @@ class TServer
       end
     end
     @old_trap['HUP'] = trap 'HUP' do
-      Process::kill 'TERM', *@children rescue nil
+      @to_child.each_value do |f| f.puts 'exit' end
       @old_trap['HUP'].call if @old_trap['HUP']
     end
     @old_trap['USR1'] = trap 'USR1' do
       @to_child.each_value do |f| f.puts 'exit' end
       @old_trap['USR1'].call if @old_trap['USR1']
+    end
+    @old_trap['INT'] = trap 'INT' do
+      Process::kill 'TERM', *@children rescue nil
+      if @old_trap['INT'] then
+	@old_trap['INT'].call
+      else
+	exit
+      end
     end
   end
 
