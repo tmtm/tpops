@@ -198,8 +198,10 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 [履歴]
 
 0.4.2	2002-04-21
-	・MaildirCRLF → MaildirUseFileSize に変更
-	・Maildir++ 形式のファイル名を扱えるようにした
+	・Maildir++ 形式のファイル名を扱えるようにした (MaildirExtended)
+	・MaildirCRLF を MaildirUseFileSize に変更
+	・tpops-pipe: quota に引っ掛かったユーザ以外のメールが配送され
+	  ないバグを修正
 
 0.4.1	2002-04-11
 	・大きなメールの RETR/TOP 時の速度とメモリ効率を向上
@@ -244,4 +246,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.20 2002/04/21 05:25:33 tommy Exp $
+$Id: README.ja,v 1.21 2002/04/21 05:31:48 tommy Exp $

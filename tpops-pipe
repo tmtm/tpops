@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-pipe,v 1.4 2002/02/02 16:47:43 tommy Exp $
+# $Id: tpops-pipe,v 1.5 2002/04/21 05:31:48 tommy Exp $
 
 require 'mysql'
 
@@ -23,7 +23,7 @@ def store(msg)
   r = @my.query("select sum(size) from msg where uid=#{@uid}").fetch_row[0]
   if r and @quota > 0 and r.to_i + size > @quota then
     $stderr.puts "quota limit exceeded"
-    exit EX_CANTCREAT
+    return EX_CANTCREAT
   end
   i = msg.index("\n\n")
   if i then
@@ -34,14 +34,15 @@ def store(msg)
     b = ''
   end
   @my.query("insert into msg (uid,header,body,size,timestamp) values (#{@uid},'#{@my.quote h}','#{@my.quote b}',#{size},now())")
+  nil
 end
 
 exit_code = EX_OK
 begin 
 
   msg = $stdin.read
+  @my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
   ARGV.each do |mail|
-    @my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
     res = @my.query("select uid,quota from user where mail='#{@my.quote mail}'")
     if res.num_rows == 0 then
       puts "#{mail}: unknown user"
@@ -51,7 +52,9 @@ begin
     uid, quota = res.fetch_row
     @uid = uid.to_i
     @quota = quota.to_i
-    store msg
+    if ret = store(msg) then
+      exit_code = ret
+    end
   end
   @my.close
 
