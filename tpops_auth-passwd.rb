@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.4 2002/03/20 15:54:19 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.5 2002/03/21 06:00:06 tommy Exp $
 
 require 'etc'
 
@@ -8,7 +8,7 @@ class TPOPS
     PasswdLockDir = '/var/tmp/tpops' unless defined? PasswdLockDir
 
     def Auth::apop?()
-      defined? APOPPasswd
+      defined? APOPPasswdFile
     end
 
     def initialize(user, pass, apop=nil)
@@ -19,10 +19,12 @@ class TPOPS
       end
       @login, @uid, @maildir = pw.name, pw.uid, pw.dir+'/Maildir/'
       if apop then
-	dbm = GDBM::open(APOPPasswd, 0600)
-	p = dbm[@login]
-	dbm.close
-	return unless p
+	require 'bdb'
+	require 'md5'
+	apophash = BDB::Hash::open(APOPPasswdFile, nil, 'r')
+	pw = apophash[@login+"\0"].chop
+	apophash.close
+	return unless pw
 	if pass == MD5::new(apop+pw).hexdigest then
 	  @authorized = true
 	end
