@@ -1,78 +1,57 @@
 TPOPS - Tommy's POP Server
 
-TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
-ます。サポートされているメールボックスは Maildir 形式です。POP ログイン
-名やメールアドレスなどのユーザ情報、メール本文は MySQL のテーブルで管理
-することもできます。
+TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
+されています。POP ログイン名やメールアドレスなどのユーザ情報、メール本文
+は MySQL のテーブルで管理されます。メールは Maildir 形式でディスク上に置
+くこともできます。
 
 [必要なもの]
 
   Ruby 1.6.x
 	http://www.ruby-lang.org
 
-  ruby-shadow 1.4.x	shadow パスワードを使用する場合に必要
-	http://kt-www.jaist.ac.jp/~ttate/ruby/ruby-ext.html
-
-  MySQL 3.23.x		MySQL 認証／メールボックスを使用する場合に必要
+  MySQL 3.23.x
 	http://www.mysql.com
 
-  MySQL/Ruby 2.4.x	MySQL使用時に必要
+  MySQL/Ruby 2.4.x
 	http://www.tmtm.org/mysql/ruby/
 
 [インストール]
 
-1. 適当なディレクトリに展開してください。
+0. MySQL をインストールして、TPOPS 用のデータベースを作成しておいてくだ
+   さい。
 
-   例)
-	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.4.0.tar.gz
-	# ln -s tpops-0.4.0 tpops
+1. tpops, tpops_sub.rb, tpops_maildir.rb, tpops.conf を同じディレクトリ
+   に置いてください。
 
-2. tpops.conf を作成してください。サンプルが tpops.conf.sample にあります。
+    例)
+	# mkdir /usr/local/tpops
+	# cp tpops tpops_sub.rb tpops_maildir.rb tpops.conf /usr/local/tpops
+
+2. tpops.conf を編集してください。
 
     Port:		ポート番号
     Hostname:		自分のホスト名
-    ConnectionKeepTime:	最大接続継続時間
+    ConnectionKeepTime:	最大接続時間
     CommandTimeout:	コマンド待ち時間
-    WithInetd:		inetd から起動する場合は true
-    LogFile:		ログファイル名(未指定時は記録無し)
-    ErrorFile:		エラー出力先ファイル(WithInetd が true の場合のみ)
-
-    AuthType:		認証タイプ('Passwd' or 'MySQL')
-    MailboxType:	メールボックスタイプ('Maildir' or 'MySQL')
+    Mailbox:		"MySQL" または "Maildir"
     MaildirCRLF:	Maildir 形式の改行コードが "\r\n" かどうか(後述)
-    PasswdLockDir:	AuthType が 'Passwd' の時のロックファイル保持
-			ディレクトリ
-
-   AuthType または MailboxType に 'MySQL' を使用する場合は、次のパラメー
-   タも設定してください。
+    WithInetd:		inetd からの起動用
+    LogFile:		ログファイル名
 
     MySQL_Server:	MySQLサーバ
     MySQL_User:		MySQLユーザ
     MySQL_Pass:		MySQLユーザのパスワード
     MySQL_DB:		MySQLデータベース
-    MySQLAuthQuery:	テーブル構造が sql.txt と異なる場合は、SQL の 
-			SELECT 文を指定してください。
 
-3. AuthType が 'MySQL' の場合または MailboxType が 'MySQL' の場合
-
-   MySQL に TPOPS 用のデータベースを作成し、sql.txt を使用してテーブルを
-   作成してください。
+3. TPOPS 用のテーブルを MySQL に作成してください。
 
     例)
-	% mysqladmin create tpops
-	% mysql tpops < sql.txt
+	% mysql DB名 < sql.txt
 
 [ユーザ登録]
 
-1. AuthType が 'Passwd' の場合(デフォルト)
-
-   OS にユーザを登録してください。MailboxType が 'Maildir' の場合、ユー
-   ザのホームディレクトリ直下の 'Maildir' が使用されます。
-
-2. AuthType が 'MySQL' の場合
-
-   user テーブルにユーザ情報を登録してください。
+user テーブルにユーザ情報を登録してください。
 
 	uid		ユーザID(数値)
 	login		POPログイン名
@@ -86,14 +65,8 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
 [メール登録]
 
-1. MaildirType が 'Maildir' の場合(デフォルト)
-
-  Maildir に対応する MTA(Postfix, qmail など)を使用してください。
-
-2. MaildirType が 'MySQL' の場合
-
-  MailboxType が 'MySQL' の場合、メールは msg テーブルで管理されます。
-  msg テーブルにメッセージを登録してください。
+Mailbox が "MySQL" の場合、メールは msg テーブルで管理されます。msg テー
+ブルにメッセージを登録してください。
 
 	id		メッセージ番号
 	uid		ユーザID
@@ -102,31 +75,18 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 	body		本文部
 	size		メッセージサイズ
 
-  簡単に登録するためのコマンド tpops-store も用意してます。
+簡単に登録するためのコマンド tpops-store も用意してます。
 
 	% tpops-store メールアドレス ファイル名
 
-  指定したファイルを登録します。ファイル名は複数指定できます。ファイル名
-  を指定しない場合は標準入力から読み込みます。
+指定したファイルを登録します。ファイル名は複数指定できます。ファイル名を
+指定しない場合は標準入力から読み込みます。
 
 	% cat ファイル名 | tpops-store メールアドレス
 
-  一つのファイルを複数のユーザに登録するためには tpops-pipe が便利です。
+一つのファイルを複数のユーザに登録するためには tpops-pipe が便利です。
 
 	% cat ファイル名 | tpops-pipe メールアドレス メールアドレス...
-
-  例)
-
-  例えば Postfix で次のように設定すると、OS に登録されていないユーザ宛の
-  メールが TPOPS に渡されます。TPOPS にも登録されていない場合は、user
-  unknown のエラーメールが送信者に返されます。
-
-  /etc/postfix/main.cf
-	fallback_transport = tpops
-
-  /etc/postfix/master.cf
-	tpops  unix  -  n  n  -  -  pipe
-	  user=nobody argv=/usr/local/tpops/tpops-pipe ${recipient}
 
 [ログファイル]
 
@@ -134,6 +94,19 @@ tpops.conf で LogFile を指定すると、ログアウト時に指定したファイルにログ
 を書き込みます。ログの形式は次の通りです。
 
 	接続元IP ログイン日 時刻 ログアウト日 時刻 ログイン名
+
+[例]
+
+例えば Postfix で次のように設定すると、OS に登録されていないユーザ宛のメー
+ルが TPOPS に渡されます。TPOPS にも登録されていない場合は、user
+unknown のエラーメールが送信者に返されます。
+
+  /etc/postfix/main.cf
+	fallback_transport = tpops
+
+  /etc/postfix/master.cf
+	tpops  unix  -  n  n  -  -  pipe
+	  user=nobody argv=/usr/local/tpops/tpops-pipe ${recipient}
 
 [Maildir 形式を使用する場合の注意]
 
@@ -165,10 +138,11 @@ POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
 
 [履歴]
 
-0.4
-	・OS の /etc/passwd をユーザ認証に使用できるようにした
-	・MySQL をオプションにした
+0.3.2	2002-02-25
+	・Log ファイルが壊れる可能性があったバグを修正
 	・POP before SMTP の仕組みを導入
+	・RETR/TOP 時には MaildirCRLF の値に関わらず "\r\n" のデータを
+	  返すようにした（MaildirCRLF はメッセージサイズ値だけに影響する）。
 
 0.3.1	2002-01-29
 	・WithInetd 時のエラー出力をファイルに変更
@@ -195,4 +169,4 @@ POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.13 2002/02/07 16:12:55 tommy Exp $
+$Id: README.ja,v 1.10.2.1 2002/02/24 18:01:51 tommy Exp $

@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.13.2.1 2002/02/24 17:43:34 tommy Exp $
+# $Id: tpops,v 1.13.2.2 2002/02/24 18:01:51 tommy Exp $
 
 require 'socket'
 
@@ -160,6 +160,7 @@ class TPOPS
       unlock()
       write_log
     end
+    after_auth_hook(@sock, auth, @mailbox) if defined? after_auth_hook
     @status = :TRANSACTION
     @start_time = Time::now
   end
