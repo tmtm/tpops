@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.9 2002/12/03 16:26:34 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.9.4.1 2004/03/23 13:06:07 tommy Exp $
 
 class TPOPS
 
@@ -10,11 +10,16 @@ class TPOPS
       @name, @size, @mtime = name, size, mtime
       @deleted = false
     end
-    attr_reader :no, :name, :size, :mtime
+    attr_reader :no, :name, :size, :mtime, :deleted
     attr_writer :no
     def deleted?() @deleted end
     def delete() @deleted = true end
     def undelete() @deleted = false end
+
+    def real_delete()
+      File::unlink @name
+      @deleted = :real_delete
+    end
   end
 
   class Mailbox
@@ -171,10 +176,21 @@ class TPOPS
     def commit()
       @files.each do |f|
 	if f.deleted? then
-	  File::unlink f.name
+          f.real_delete
 	end
       end
     end
-  end
 
+    def real_stat()
+      cnt = 0
+      size = 0
+      @files.each do |f|
+	if f.deleted != :real_delete then
+	  size += f.size
+	  cnt += 1
+	end
+      end
+      [cnt, size]
+    end
+  end
 end

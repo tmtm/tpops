@@ -331,7 +331,7 @@ class TPOPS
 
     def write_log()
       if @mailbox then
-	msgs, size = @mailbox.stat
+	msgs, size = @mailbox.real_stat
       else
 	msgs, size = 0, 0
       end
