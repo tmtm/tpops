@@ -67,118 +67,134 @@
 # ln -s tpops-0.6 tpops
 </pre>
 
-      <li>tpops.conf を作成してください。サンプルが tpops.conf.sample にあります。
+      <li>必要に応じて tpops.conf を編集してください。
 	<p>
 	  設定できるパラメータは次の通りです。
+	  これらのパラメータはコマンドライン上で --parameter=value としても記述できます。
+	  コマンドラインでの指定が優先されます。
 	</p>
 
 	<table frame="box" rules="all" summary="parameter">
 	    <tr>
 	      <th>パラメータ名<th>デフォルト値<th>意味
 	    <tr>
-	      <th colspan=3>共通パラメータ
+	      <th colspan=3>標準パラメータ
 	    <tr>
-	      <td>$port<td>110
-	      <td>ポート番号。
+	      <td>config<td>なし(tpopsと同じディレクトリの tpops.conf)
+	      <td>設定ファイルを指定します。通常はコマンドラインで指定します。
+		設定ファイル中で指定してもおそらく意味はないでしょう。
 	    <tr>
-	      <td>$hostname<td>`uname -n`.chomp
-	      <td>自分のホスト名。
+	      <td>port または p<td>110
+	      <td>tpops が listen するポート番号。
+		「ホスト名:ポート番号」の形式でホスト名を指定した時は、そのアドレスだけで listen します。
 	    <tr>
-	      <td>$connection_keep_time<td>3600
+	      <td>hostname<td>なし(「uname -n」の結果)
+	      <td>クライアントの接続時に最初に返されるメッセージ中に含まれるホスト名。
+	    <tr>
+	      <td>connection-keep-time<td>3600
 	      <td>
 		最大接続維持時間(秒数)。
 		接続開始からこの時間が経過すると、オペレーション中であっても強制的に接続を切断します。
 	    <tr>
-	      <td>$command_timeout<td>600
+	      <td>command-timeout<td>600
 	      <td>
 		コマンド待ち時間(秒数)。
 		クライアントからこの時間入力がないと、接続を切断します。
 	    <tr>
-	      <td>$with_inetd<td>false
-	      <td>inetd から起動するかどうかのフラグ。
+	      <td>inetd<td>なし
+	      <td>指定されている場合は inetd から起動されたものとして動作します。
 	    <tr>
-	      <td>$access_log<td>nil
+	      <td>fg<td>なし
+	      <td>指定されている場合はフォアグラウンドで動作します。
+	    <tr>
+	      <td>version<td>なし
+	      <td>指定されている場合はバージョン情報を表示して終了します。
+	    <tr>
+	      <td>debug<td>なし
+	      <td>指定されている場合はクライアントのコマンドとサーバの応答をログに記録します。
+	    <tr>
+	      <td>access-log<td>なし
 	      <td>アクセスログファイル名。
 	    <tr>
-	      <td>$error_log<td>nil
+	      <td>error-log<td>なし
 	      <td>エラーログファイル名。
 	    <tr>
-	      <td>$pid_file<td>nil
-	      <td>プロセスIDファイル名。
+	      <td>pid-file<td>なし
+	      <td>プロセスIDを記録するファイル名。
 	    <tr>
-	      <td>$syslog_facility<td>Syslog::LOG_MAIL
+	      <td>user または u<td>なし(親プロセスと同じ)
+	      <td>子プロセスの UID。passwd 認証に root 権限が必要なシステムでは、このパラメータを設定すると認証できません。
+	    <tr>
+	      <td>group または g<td>なし(親プロセスと同じ)
+	      <td>子プロセスの GID。
+	    <tr>
+	      <td>syslog<td>mail
+	      <td>syslog ファシリティ名。syslog に記録しない場合は「none」を指定します。
+	    <tr>
+	      <td>auth-type<td>passwd
 	      <td>
-		syslog の facility。シンボルまたは数値。
-		syslog を使用しない場合は nil を指定します。
+		ユーザ認証方式。passwd, mysql のいずれかを指定します。
 	    <tr>
-	      <td>$auth_type<td>'Passwd'
-	      <td>
-		認証タイプ。'Passwd' または 'MySQL' を指定します。
+	      <td>domain<td>
+	      <td>ログイン名に「@」「%」「+」のいずれも含まれてない場合に、「@domainname」をログイン名に追加して認証を試みます。
 	    <tr>
-	      <td>$error_interval<td>5
-	      <td>クライアントにエラーを返す前に待つ秒数。
+	      <td>error-interval<td>5
+	      <td>クライアントからのコマンドがエラーになった場合に、エラーを返す前に遅延する秒数。
 	    <tr>
-	      <td>$min_servers<td>5
-	      <td>最小待ち受けプロセス数。
+	      <td>min-servers<td>5
+	      <td>最小子プロセス数。子プロセス数がこの値以下になると、この値になるまで子プロセスが起動されます。
 	    <tr>
-	      <td>$max_servers<td>50
-	      <td>最大待ち受けプロセス数。
+	      <td>max-servers<td>50
+	      <td>最大子プロセス数。子プロセス数はこの値以上にはなりません。
 	    <tr>
-	      <td>$max_use<td>100
-	      <td>１プロセスあたりの最大処理数。
+	      <td>max-use<td>100
+	      <td>子プロセスが処理する接続数の最大値。この値を超えると子プロセスは終了します。
 	    <tr>
-	      <td>$max_idle<td>100
-	      <td>この時間(秒数)接続がないと子プロセスが終了します。
+	      <td>max-idle<td>100
+	      <td>最大接続待ち時間。接続終了後、この時間内に新たな接続がないと子プロセスは終了します。
 	    <tr>
-	      <td>$maildir_extended<td>true
-	      <td>
-		メッセージサイズの獲得に Maildir++ 形式のファイル名を使用するかどうか。
+	      <td>maildir-use-filesize<td>yes
+	      <td>Maildir 形式で保存されているメールファイルのサイズを、メールのサイズとして扱います。
+		RFCに従わなくなる可能性があるので注意。
 	    <tr>
-	      <td>$maildir_use_filesize<td>true
-	      <td>ファイルサイズをメッセージサイズとして使用するかどうか。
+	      <td>maildir-extended<td>yes
+	      <td>Maildir 形式で保存されているメールファイルのファイル名中に「S=数値」があれば、それをメールのサイズとして扱います。
+		maildir-use-filesize よりも優先されます。
+		RFCに従わなくなる可能性があるので注意。
 	    <tr>
-	      <td>$user<td>nil
-	      <td>
-		プロセスのユーザ名。
-		Passwd 認証時には、passwd 認証に root 権限が必要なシステムでは、このパラメータを設定すると認証できません。
+	      <td>maildir-lock<td>yes
+	      <td>メールボックスをロックします。ログイン中は同じメールボックスを使用する ID ではログインできません。
 	    <tr>
-	      <td>$group<td>nil
-	      <td>
-		プロセスのグループ名。
+	      <th colspan=3>auth-type = passwd 時に有効なパラメータ
 	    <tr>
-	      <th colspan=3>$auth_type == 'Passwd' 時に有効なパラメータ
+	      <td>apop-passwd-file<td>なし
+	      <td>APOP 認証時に使用される ID とパスワードの対が DBM 形式で格納されたファイル名。指定された場合は、APOP が使用できます。
 	    <tr>
-	      <td>$passwd_lock_dir<td>'/var/run/tpops'
-	      <td>ロックファイル保持ディレクトリ。
+	      <td>maildir<td>Maildir
+	      <td>Maildir 形式のメール格納ディレクトリのユーザのホームディレクトリからの相対パス。
 	    <tr>
-	      <td>$maildir<td>'Maildir'
-	      <td>Maildir ディレクトリ(ホームディレクトリからの相対パス)。
+	      <th colspan=3>auth-type = mysql 時に有効なパラメータ
 	    <tr>
-	      <td>$apop_passwd_file<td>nil
-	      <td>APOP パスワードファイル。
+	      <td>mysql-server<td>なし
+	      <td>MySQLサーバ名。
 	    <tr>
-	      <th colspan=3>$auth_type == 'MySQL' 時に有効なパラメータ
+	      <td>mysql-user<td>なし
+	      <td>MySQLログインユーザ名。
 	    <tr>
-	      <td>$mysql_server<td>nil
-	      <td>MySQLサーバホスト名。
+	      <td>mysql-pass<td>なし
+	      <td>MySQLログインパスワード。
 	    <tr>
-	      <td>$mysql_user<td>nil
-	      <td>MySQL接続ユーザ。
-	    <tr>
-	      <td>$mysql_pass<td>nil
-	      <td>MySQL接続ユーザのパスワード。
-	    <tr>
-	      <td>$mysql_db<td>nil
+	      <td>mysql-db<td>なし
 	      <td>MySQLデータベース名。
 	    <tr>
-	      <td>$mysql_auth_query
-	      <td>'select login,passwd,uid,maildir from user where login="%s"'
+	      <td>mysql-auth-query
+	      <td>select login,passwd,maildir from user where login="%s"
 	      <td>
-		認証情報を取り出すためのクエリ。
-		%s にはクライアントからのログイン名が入ります。
+		ログイン名,パスワード,Maildir を取り出すためのクエリ文字列。
+		「%s」はクライアントから渡されたログイン名に置き換えられます。
 	</table>
 
-      <li>$auth_type が 'MySQL' の場合
+      <li>auth_type = mysql の場合
 
 	<p>
 	  MySQL に TPOPS 用のデータベースを作成し、tpops_auth-mysql.sql を使用してテーブルを作成してください。
@@ -205,53 +221,6 @@
 	</p>
     </ol>
 
-    <h2>起動オプション</h2>
-
-    <table frame="box" rules="all" summary="user table">
-	<tr>
-	  <th>オプション<th>意味
-	<tr>
-	  <td>-f <i>filename</i>
-	  <td>
-	    tpops.conf ではなく指定したファイルを読み込みます。
-	<tr>
-	  <td>--domain <i>domainname</i>
-	  <td>
-	    ログイン名に「@」「%」「+」のいずれも含まれてない場合に、
-	    「@<i>domainname</i>」をログイン名に追加して認証を試みます。
-	<tr>
-	  <td>--fg
-	  <td>
-	    スタンドアロン時、フォアグランドで動作します。
-	<tr>
-	  <td>--port #
-	  <td>
-	    ポートを指定します。
-	<tr>
-	  <td>--debug
-	  <td>
-	    デバッグメッセージを syslog に出します。
-	<tr>
-	  <td>--version
-	  <td>
-	    バージョンを表示して終了します。
-	<tr>
-	  <td>--inetd
-	  <td>
-	    inetd から起動されるように動作します。
-	<tr>
-	  <td>--user <i>username</i>
-	  <td>ユーザ名を指定します。
-	<tr>
-	  <td>--group <i>groupname</i>
-	  <td>
-	    グループ名を指定します。
-	<tr>
-	  <td>--pidfile <i>filename</i>
-	  <td>
-	    指定したファイルにプロセスIDを書き出します。
-    </table>
-
     <h2>シグナル</h2>
     <p>
       SIGTERM を受信すると終了します。
@@ -269,13 +238,13 @@
     <h2>ユーザ登録</h2>
 
     <ol>
-      <li>$auth_type が 'Passwd' の場合(デフォルト)
+      <li>auth-type = passwd の場合(デフォルト)
 	<p>
 	  OS にユーザを登録してください。
 	  メールボックスは、ユーザのホームディレクトリ直下の 'Maildir' が使用されます。
 	</p>
 	<p>
-	  APOP を使用する場合は、tpops.conf 内に $apop_passwd_file を設定してください。
+	  APOP を使用する場合は、tpops.conf 内に apop-passwd-file を設定してください。
 	  APOP 使用時にはこのファイルから、パスワードが検索されます。
 	  ここで指定するファイルの内容は、ログイン名をキーとしてプレーンパスワードを得られるような DBM 形式です。
 	</p>
@@ -290,7 +259,7 @@
 	    <tr><td>tpops_passwd -l <i>pwdfile</i><td>pwdfile 内の ID とパスワードをリストする
 	</table>
 
-      <li>$auth_type が 'MySQL' の場合
+      <li>auth-type = mysql の場合
 	<p>
 	  user テーブルにユーザ情報を登録してください。
 	</p>
@@ -307,14 +276,13 @@
     <h2>ログファイル</h2>
 
     <p>
-      tpops.conf で $access_log を指定すると、ログアウト時に指定したファイルにログを書き込みます。
+      tpops.conf で access-log を指定すると、ログアウト時に指定したファイルにログを書き込みます。
       ログの形式は次の通りです。
     </p>
     <pre class="code">接続元IP ログイン日 時刻 ログアウト日 時刻 ログイン名 ログイン時メッセージ数 ログイン時メッセージサイズ ログアウト時メッセージ数 ログアウト時メッセージサイズ</pre>
     <p>
-      $syslog_facility を指定すると、指定したファシリティで syslog にログを書き出します。
-      $syslog_facility はファシリティを表わす数値です。
-      Syslog::LOG_MAIL という形式でも指定できます。
+      syslog を指定すると、指定したファシリティで syslog にログを書き出します。
+      syslog はファシリティを表わす文字列です。
     </p>
 
     <h2>Maildir 形式を使用する場合の注意</h2>
@@ -329,11 +297,11 @@
     </p>
     <p>
       Maildir++ 形式のファイル名でメッセージを格納するメール配送エージェントを使用すれば、ファイル名にメッセージサイズが含められているので、ファイルの内容をチェックする必要がなく、高速に処理できます。
-      メールファイルが Maildir++ 形式のファイル名の場合は、TPOPS は自動的にファイル名からサイズを得ようとします。この動作を無効にしたい場合は tpops.conf に「$maildir_extended = false」を設定してください。
+      メールファイルが Maildir++ 形式のファイル名の場合は、TPOPS は自動的にファイル名からサイズを得ようとします。この動作を無効にしたい場合は tpops.conf に「maildir-extended = no」を設定してください。
     </p>
     <p>
       ファイル名が Maildir++ 形式でない場合は、ファイルサイズをメッセージサイズとして使用することで高速に処理しようとします(qmail と同じ手法)。
-      この動作を無効にしたい場合は tpops.conf に「$maildir_use_filesize = false」を設定してください。
+      この動作を無効にしたい場合は tpops.conf に「maildir-use-filesize = no」を設定してください。
       ただし、メッセージサイズを調べるために、メッセージファイルの内容を読み出すため、遅くなります。注意してください。
     </p>
 
@@ -352,17 +320,25 @@
     <h2>履歴</h2>
 
     <dl>
-      <dt>0.6
+      <dt>0.6 2004-06-11
       <dd>
 	<ul>
+	  <li>コマンドラインオプションを変更。
+	  <li>コンフィグファイルの形式を変更(Rubyスクリプトではなくなった)。
 	  <li>tpops_passwd コマンドの追加。
 	  <li>tpops-useradd コマンドの削除。
-	  <li>$passwd_lock_dir のデフォルト値変更。
-	  <li>$maildir パラメータの導入。
+	  <li>passwd-lock-dir のデフォルト値変更。
+	  <li>maildir パラメータの導入。
 	  <li>SIGHUP 時にすべての設定パラメータを反映させるようにした。
-	  <li>$apop_passwd_file の形式を BDB::Hash 形式から DBM 形式に変更。
+	  <li>apop-passwd-file の形式を BDB::Hash 形式から DBM 形式に変更。
 	  <li>ロックファイルの形式を変更。
 	  <li>ruby-shadow を不要にした。
+	  <li>tserver 0.2 を使用。
+	  <li>plugin ディレクトリの作成。
+	  <li>mysql-auth-query の検索結果を変更。
+	  <li>ログイン時に new から cur にメールを移動するようにした。
+	  <li>RETR したメールに S フラグをつけるようにした。
+	  <li>LAST コマンド対応。
 	</ul>
       <dt>0.5.5	2004-03-18
       <dd>
@@ -528,7 +504,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Mon Mar 22 11:39:31 JST 2004
+Last modified: Fri Jun 11 01:13:35 JST 2004
 <!-- hhmts end -->
     </p>
   </body>
