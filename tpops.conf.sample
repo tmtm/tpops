@@ -1,16 +1,18 @@
-# $Id: tpops.conf.sample,v 1.2 2002/02/06 17:55:10 tommy Exp $
+# $Id: tpops.conf.sample,v 1.3 2002/02/07 16:12:55 tommy Exp $
 
-Port = 110
-Hostname = `uname -n`.chomp
-ConnectionKeepTime = 60*60		# 1 hour
-CommandTimeout = 5*60			# 5 minutes
-MaildirCRLF = false
-WithInetd = false			# set true if using with inetd
+#Port = 110
+#Hostname = 'yourhost'
+#ConnectionKeepTime = 60*60		# 1 hour
+#CommandTimeout = 5*60			# 5 minutes
+#WithInetd = false			# set true if using with inetd
 #LogFile = '/var/log/tpops.log'
-ErrorFile = '/var/log/tpops.err'	# used when WithInetd is true
+#ErrorFile = '/var/log/tpops.err'	# used when WithInetd is true
 
 #AuthType = 'Passwd'		# 'Passwd' or 'MySQL'
 #MailboxType = 'Maildir'	# 'Maildir' or 'MySQL'
+#MaildirCRLF = false
+#PasswdLockDir = '/var/tmp/tpops'
+#APOPPasswd = '/etc/tpops-apoppw'
 
 # if you use MySQL, set these parameters
 #

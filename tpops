@@ -1,12 +1,20 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.16 2002/02/06 17:55:10 tommy Exp $
+# $Id: tpops,v 1.17 2002/02/07 16:12:55 tommy Exp $
 
 require 'socket'
 
 $LOAD_PATH.unshift File::dirname($0)
 
 load 'tpops.conf'
-Mailbox = 'MySQL' unless defined? Mailbox
+
+Port = 110 unless defined? Port
+Hostname = `uname -n`.chomp unless defined? Hostname
+ConnectionKeepTime = 60*60 unless defined? ConnectionKeepTime
+CommandTimeout = 5*60 unless defined? CommandTimeout
+MaildirCRLF = false unless defined? MaildirCRLF
+WithInetd = false unless defined? WithInetd
+LogFile = nil unless defined? LogFile
+ErrorFile = '/var/log/tpops.err' unless defined? ErrorFile
 
 AuthType = 'Passwd' unless defined? AuthType
 require 'tpops_auth-'+AuthType.downcase
@@ -17,7 +25,7 @@ require 'tpops_mailbox-'+MailboxType.downcase
 class TPOPS
 
   def initialize()
-    if defined? WithInetd and WithInetd then
+    if WithInetd then
       $stderr = File::open(ErrorFile, 'a')
       connection(Socket::for_fd $stdin.fileno)
     else
@@ -175,7 +183,7 @@ class TPOPS
   end
 
   def write_log()
-    if defined? LogFile and LogFile then
+    if LogFile then
       File::open(LogFile, 'a') do |f|
 	f.puts sock_to_addr(@sock) + ' ' +
 	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
