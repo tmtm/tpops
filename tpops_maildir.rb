@@ -1,4 +1,4 @@
-# $Id: tpops_maildir.rb,v 1.6.2.1 2002/02/24 18:01:51 tommy Exp $
+# $Id: tpops_maildir.rb,v 1.6.2.2 2002/02/26 15:57:21 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -119,7 +119,7 @@ class TPOPS
   def retr(msg)
     if not exist? msg then return nil end
     r = File::open(@files[msg-1].name) do |f| f.read end
-    r.gsub!(/([^\r])\n/, "\\1\r\n")
+    r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
     r
   end
 
@@ -136,7 +136,7 @@ class TPOPS
   def top(msg, lines)
     if not exist? msg then return nil end
     r = File::open(@files[msg-1].name) do |f| f.read end
-    r.gsub!(/([^\r])\n/, "\\1\r\n")
+    r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
     if r =~ /\r\n\r\n/ then
       h = $` + "\r\n"	#`
       b = $'		#'
