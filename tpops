@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.9 2001/12/15 09:03:32 tommy Exp $
+# $Id: tpops,v 1.10 2001/12/28 08:12:49 tommy Exp $
 
 require 'socket'
 
@@ -87,7 +87,7 @@ class TPOPS
       err 'too many arguments'
       return
     end
-    ok 'server signing off'
+    ok 'server signing off' rescue true
     exit
   end
 
@@ -290,7 +290,7 @@ class TPOPS
       return
     end
     commit
-    ok 'server signing off'
+    ok 'server signing off' rescue true
     exit
   end
 
