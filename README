@@ -57,6 +57,9 @@ message can be controled by MySQL table.
     $error_log (nil)
 	error log filename.
 
+    $pid_file (nil)
+	process id filename.
+
     $syslog_facility (Syslog::LOG_MAIL)
 	syslog facility. If it is nil, don't use syslog.
 
@@ -171,6 +174,10 @@ message can be controled by MySQL table.
 
     group name.
 
+  --pidfile filename
+
+    write process-id to filename.
+
 [Signal]
 
 SIGTERM: exit.
@@ -214,6 +221,11 @@ This program is under Ruby license.
 
 [History]
 
+0.5.1	2003-01-18
+	* bug fix. lock information remains when client disconnect.
+	* add parameter $pid_file and --pidfile option.
+	* reopen $error_log when SIGHUP.
+
 0.5.0	2002-12-04
 	* can run without tpops.conf.
 	* change parameter Parameter to $parameter.
@@ -233,4 +245,4 @@ This program is under Ruby license.
 
 TOMITA Masahiro <tommy@tmtm.org>
 
-$Id: README,v 1.4 2002/12/03 16:26:34 tommy Exp $
+$Id: README,v 1.5 2003/01/18 09:10:50 tommy Exp $

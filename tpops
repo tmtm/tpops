@@ -20,6 +20,7 @@ $min_servers = 5
 $max_servers = 50
 $max_use = 100
 $max_idle = 100
+$pid_file = nil
 
 def load_config()
   script_dir = File::dirname $0
@@ -34,6 +35,7 @@ def load_config()
   $foreground = $OPT_fg if $OPT_fg
   $port = $OPT_port.to_i if $OPT_port
   $debug = $OPT_debug if $OPT_debug
+  $pid_file = $OPT_pidfile if $OPT_pidfile
   $with_inetd = true if $OPT_inetd
   $user = $OPT_user if $OPT_user
   $group = $OPT_group if $OPT_group
@@ -42,6 +44,9 @@ def load_config()
   end
   if $group then
     $gid = $group =~ /^\d+$/ ? $group.to_i : Etc::getgrnam($group).gid
+  end
+  if $pid_file then
+    File::open($pid_file, "w") do |f| f.puts $$ end
   end
 end
 
@@ -70,7 +75,9 @@ class TPOPS
   def initialize()
     Syslog::open(File::basename($0), nil, $syslog_facility) if $syslog_facility
     if $with_inetd then
-      $stderr = File::open($error_log || '/dev/null', 'a')
+      File::open($error_log || '/dev/null', 'a') do |f|
+	$stderr.reopen f
+      end
       begin
 	Process::uid = $user if $user
 	Process::gid = $group if $group
@@ -88,7 +95,11 @@ class TPOPS
 	end
 	Process::setsid
       end
-      $stderr = File::open($error_log, 'a') if $error_log
+      if $error_log then
+	File::open($error_log, 'a') do |f|
+	  $stderr.reopen f
+	end
+      end
       ts = TServer::new($port)
       ts.on_child_start = Proc::new do
 	Process::uid = $uid if $uid
@@ -104,6 +115,11 @@ class TPOPS
 	ts.max_servers = $max_servers
 	ts.max_use = $max_use
 	ts.max_idle = $max_idle
+	if $error_log then
+	  File::open($error_log, 'a') do |f|
+	    $stderr.reopen f
+	  end
+	end
 	old_hup_trap.call
       end
       ts.start do |conn|
@@ -154,45 +170,48 @@ class TPOPS
 
       @sock.connect_time = Time::now.to_i
       ok "TPOPS ready. #{@apopkey}"
-      catch :disconnect do
-	loop do
-	  r = @sock.gets_limit
-	  if not r then break end
-	  r = r.chomp.sub(/\r$/, '')
-	  log_debug "< #{r}"
-	  comm = r.split
-	  if comm.size == 0 then next end
-	  case @status
-	  when :AUTHORIZATION
-	    case comm[0].upcase
-	    when 'QUIT';	comm_auth_quit comm[1..-1]
-	    when 'USER';	comm_user comm[1..-1]
-	    when 'PASS';	comm_pass r.split(' ', 2)[1,1]
-	    when 'APOP';	comm_apop comm[1..-1]
-	    else
-	      err 'invalid command'
-	    end
-	  when :TRANSACTION
-	    case comm[0].upcase
-	    when 'STAT';	comm_stat comm[1..-1]
-	    when 'LIST';	comm_list comm[1..-1]
-	    when 'RETR';	comm_retr comm[1..-1]
-	    when 'DELE';	comm_dele comm[1..-1]
-	    when 'NOOP';	comm_noop comm[1..-1]
-	    when 'RSET';	comm_rset comm[1..-1]
-	    when 'TOP' ;	comm_top comm[1..-1]
-	    when 'UIDL';	comm_uidl comm[1..-1]
-	    when 'QUIT';	comm_quit comm[1..-1]
-	    else
-	      err 'invalid command'
+      begin
+	catch :disconnect do
+	  loop do
+	    r = @sock.gets_limit
+	    if not r then break end
+	    r = r.chomp.sub(/\r$/, '')
+	    log_debug "< #{r}"
+	    comm = r.split
+	    if comm.size == 0 then next end
+	    case @status
+	    when :AUTHORIZATION
+	      case comm[0].upcase
+	      when 'QUIT';	comm_auth_quit comm[1..-1]
+	      when 'USER';	comm_user comm[1..-1]
+	      when 'PASS';	comm_pass r.split(' ', 2)[1,1]
+	      when 'APOP';	comm_apop comm[1..-1]
+	      else
+		err 'invalid command'
+	      end
+	    when :TRANSACTION
+	      case comm[0].upcase
+	      when 'STAT';	comm_stat comm[1..-1]
+	      when 'LIST';	comm_list comm[1..-1]
+	      when 'RETR';	comm_retr comm[1..-1]
+	      when 'DELE';	comm_dele comm[1..-1]
+	      when 'NOOP';	comm_noop comm[1..-1]
+	      when 'RSET';	comm_rset comm[1..-1]
+	      when 'TOP' ;	comm_top comm[1..-1]
+	      when 'UIDL';	comm_uidl comm[1..-1]
+	      when 'QUIT';	comm_quit comm[1..-1]
+	      else
+		err 'invalid command'
+	      end
 	    end
 	  end
 	end
+      ensure
+	@auth.unlock if @auth and @auth.locked? rescue nil
+	write_log rescue nil
+	@sock.close rescue nil
+	log_info "disconnect from #{@peer_addr}" rescue nil
       end
-      write_log
-      @sock.close
-      @auth.unlock if @auth and @auth.locked?
-      log_info "disconnect from #{@peer_addr}"
     end
 
     def err(arg=nil)
@@ -452,7 +471,7 @@ class TPOPS
 
 end
 
-unless getopts(nil, 'f:', 'domain:', 'fg', 'port:', 'debug', 'version', 'inetd', 'user:', 'group:') then
+unless getopts(nil, 'f:', 'domain:', 'fg', 'port:', 'debug', 'version', 'inetd', 'user:', 'group:', 'pidfile:') then
   raise 'unknown options'
 end
 if $OPT_version then

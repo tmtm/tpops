@@ -1,4 +1,4 @@
-# $Id: tpops.conf.sample,v 1.7 2002/12/03 16:26:34 tommy Exp $
+# $Id: tpops.conf.sample,v 1.8 2003/01/18 09:10:50 tommy Exp $
 
 $port = 110
 $hostname = `uname -n`.chomp
@@ -7,6 +7,7 @@ $command_timeout = 10*60
 $with_inetd = false
 $access_log = nil	# '/var/log/tpops.log'
 $error_log = nil	# '/var/log/tpops.err'
+$pid_file = nil		# '/var/run/tpops.pid'
 $syslog_facility = Syslog::LOG_MAIL
 
 $auth_type = 'Passwd'
