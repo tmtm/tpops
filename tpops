@@ -109,8 +109,7 @@ class TPOPS
       ts.max_servers = $max_servers
       ts.max_use = $max_use
       ts.max_idle = $max_idle
-      old_hup_trap = trap 'HUP' do
-	load_config
+      after_load_config = Proc::new do |old_trap|
 	ts.min_servers = $min_servers
 	ts.max_servers = $max_servers
 	ts.max_use = $max_use
@@ -120,7 +119,15 @@ class TPOPS
 	    $stderr.reopen f
 	  end
 	end
-	old_hup_trap.call
+	old_trap.call
+      end
+      old_hup_trap = trap 'HUP' do
+	load_config
+	after_load_config.call(old_hup_trap)
+      end
+      old_usr1_trap = trap 'USR1' do
+	load_config
+	after_load_config.call(old_usr1_trap)
       end
       ts.start do |conn|
 	begin

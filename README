@@ -222,7 +222,8 @@ This program is under Ruby license.
 [History]
 
 0.5.1	2003-01-18
-	* bug fix. lock information remains when client disconnect.
+	* [BUG] fix that lock information remains when client disconnect.
+	* [BUG] fix that SIGUSR1 ignored.
 	* add parameter $pid_file and --pidfile option.
 	* reopen $error_log when SIGHUP.
 
@@ -245,4 +246,4 @@ This program is under Ruby license.
 
 TOMITA Masahiro <tommy@tmtm.org>
 
-$Id: README,v 1.5 2003/01/18 09:10:50 tommy Exp $
+$Id: README,v 1.6 2003/01/18 09:50:25 tommy Exp $
