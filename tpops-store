@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-store,v 1.1 2001/05/06 14:48:33 tommy Exp $
+# $Id: tpops-store,v 1.1.1.1 2001/05/06 14:48:33 tommy Exp $
 
 require 'mysql'
 

@@ -1,4 +1,4 @@
-# $Id: tpops_sub.rb,v 1.1 2001/05/06 14:48:33 tommy Exp $
+# $Id: tpops_sub.rb,v 1.1.1.1 2001/05/06 14:48:33 tommy Exp $
 
 require 'md5'
 require 'mysql'
