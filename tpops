@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.58 2004/06/10 16:01:36 tommy Exp $
+# $Id: tpops,v 1.59 2004/06/10 17:14:03 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -139,6 +139,7 @@ class TPOPS
         end
         Process.setsid
         $already_forked = true
+        log_notice "tpops daemon start"
       end
       File.unlink @pid_file rescue nil if @pid_file
       @pid_file = nil
@@ -167,6 +168,7 @@ class TPOPS
       end
     end
     File.unlink @pid_file rescue nil if @pid_file
+    log_notice "tpops daemon stop" unless $conf["inetd"]
   end
 
   def start_by_inetd()
@@ -663,12 +665,9 @@ begin
   if $conf["inetd"] then
     tpops.start_by_inetd
   else
-    log_notice "tpops daemon start"
     tpops.start
   end
 rescue
   log_err "#{$@[0]}: #{$!}"
   raise
-ensure
-  log_notice "tpops daemon stop" unless $conf["inetd"]
 end

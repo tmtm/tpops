@@ -1,6 +1,5 @@
-# $Id: auth-mysql.rb,v 1.4 2004/06/10 11:20:22 tommy Exp $
+# $Id: auth-mysql.rb,v 1.5 2004/06/10 17:14:04 tommy Exp $
 
-require 'mysql'
 require 'md5'
 
 $options.update({
@@ -26,6 +25,7 @@ class TPOPS
     end
 
     def my()
+      require 'mysql'
       if @@my == nil then
 	@@my = Mysql.new($conf["mysql-server"], $conf["mysql-user"], $conf["mysql-passwd"], $conf["mysql-db"])
       end
