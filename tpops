@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.30 2002/11/07 03:20:11 tommy Exp $
+# $Id: tpops,v 1.31 2002/11/07 09:03:39 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -224,11 +224,10 @@ class TPOPS
       end
       u = @user == nil ? '()' : @status == :TRANSACTION ? @user : "(#{@user})"
       File::open(LogFile, 'a') do |f|
-	f.syswrite @peer_addr + ' ' +
-	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
-	  Time::now.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
-	  u + s_msgs.to_s + ' ' + s_size.to_s +
-	  msgs.to_s + ' ' + size.to_s + "\n"
+	f.syswrite sprintf "%s %s %s %s %d %d %d %d\n",
+	  @peer_addr, @start_time.strftime('%Y/%m/%d %H:%M:%S'),
+	  Time::now.strftime('%Y/%m/%d %H:%M:%S'),
+	  u, s_msgs, s_size, msgs, size
       end
     end
   end
