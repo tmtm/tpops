@@ -24,6 +24,7 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
     ConnectionKeepTime:	最大接続時間
     CommandTimeout:	コマンド待ち時間
     Mailbox:		"MySQL" または "Maildir"
+    MaildirCRLF:	Maildir 形式の改行コードが "\r\n" かどうか(後述)
 
     MySQL_Server:	MySQLサーバ
     MySQL_User:		MySQLユーザ
@@ -70,6 +71,10 @@ Mailbox が "MySQL" の場合、メールは msg テーブルで管理されます。msg テー
 
 	% cat ファイル名 | tpops-store メールアドレス
 
+一つのファイルを複数のユーザに登録するためには tpops-pipe が便利です。
+
+	% cat ファイル名 | tpops-pipe メールアドレス メールアドレス...
+
 [例]
 
 例えば Postfix で次のように設定すると、OS に登録されていないユーザ宛のメー
@@ -81,15 +86,29 @@ unknown のエラーメールが送信者に返されます。
 
   /etc/postfix/master.cf
 	tpops  unix  -  n  n  -  -  pipe
-	  user=nobody argv=/usr/local/tpops/tpops-store ${recipient}
+	  user=nobody argv=/usr/local/tpops/tpops-pipe ${recipient}
 
-[Postfix で Maildir 形式を使用する場合の注意]
+[Maildir 形式を使用する場合の注意]
 
-Postfix では、/etc/postfix/main.cf に home_mailbox = Maildir/ と指定すれ
-ば、Maildir 形式で配送されます。しかし、格納されたメールの改行コードは、
-"\r\n" ではなく "\n" になっています。これだと POP のプロトコル上、あまり
-よろしくないので、Postfix の local を postfix-local.patch のように変更し
-てください。
+qmail や Postfix の Maildir 形式では、メッセージの改行コードが "\n" とし
+てファイルに格納されます。しかし POP プロトコルでは改行コードは "\r\n" 
+に定められています。LIST コマンドなどで通知されるメッセージサイズも 
+POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
+そのため、メッセージサイズを得るだけでも、メッセージファイルを読み、改行
+コードを調べる必要があります。
+
+# qmail に付属の qmail-pop3d はこの処理をサボって、ファイルサイズを返し
+# ているため、RFC 的には正しくありません。
+
+標準的な Maildir 形式でなくても良いのであれば、改行コードを "\r\n" にし
+て Maildir のファイルに格納することで、このコストを低減することができま
+す。Postfix の場合は、添付の postfix-local.patch を適用することで、改行
+コードが "\r\n" になります。
+
+改行コードが "\r\n" の Maildir 形式を扱う場合には、tpops.conf ファイルに
+「MaildirCRLF = true」と記述してください。メッセージサイズはファイルサイ
+ズを用いるようになります。「MaildirCRLF = false」の場合は、メッセージファ
+イルを読んで、RFC 的に正しいサイズを返すようになります。
 
 [注意]
 
@@ -101,4 +120,4 @@ Postfix では、/etc/postfix/main.cf に home_mailbox = Maildir/ と指定すれ
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.4 2001/07/11 07:53:59 tommy Exp $
+$Id: README.ja,v 1.5 2001/07/11 14:53:32 tommy Exp $

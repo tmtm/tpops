@@ -1,0 +1,66 @@
+#!/usr/local/bin/ruby
+# $Id: tpops-pipe,v 1.1 2001/07/11 14:53:33 tommy Exp $
+
+require 'mysql'
+
+EX_OK = 0
+EX_USAGE = 64
+EX_NOUSER = 67
+EX_CANTCREAT = 73
+EX_TEMPFAIL = 75
+
+Dir = $0.sub(/[^\/]*$/, '')
+load Dir+'tpops.conf'
+
+if ARGV.size < 1 then
+  $stderr.puts "usage: tpops-store mail_address [mail_address...]"
+  exit EX_USAGE
+end
+
+def store(msg)
+  msg.gsub!(/\r\n/, "\n")
+  size = msg.gsub(/\n/, "\r\n").size
+  r = @my.query("select sum(size) from msg where uid=#{@uid}").fetch_row[0]
+  if r and r.to_i + size > @quota then
+    $stderr.puts "quota limit exceeded"
+    exit EX_CANTCREAT
+  end
+  i = msg.index("\n\n")
+  if i then
+    h = msg[0, i+1]
+    b = msg[i+2 .. -1]
+  else
+    h = msg
+    b = ''
+  end
+  @my.query("insert into msg (uid,header,body,size,timestamp) values (#{@uid},'#{@my.quote h}','#{@my.quote b}',#{size},now())")
+end
+
+exit_code = EX_OK
+begin 
+
+  msg = $stdin.read
+  ARGV.each do |mail|
+    @my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
+    res = @my.query("select uid,quota from user where mail='#{@my.quote mail}'")
+    if res.num_rows == 0 then
+      puts "#{mail}: unknown user"
+      exit_code = EX_NOUSER
+    end
+    uid, quota = res.fetch_row
+    @uid = uid.to_i
+    @quota = quota.to_i
+    store msg
+  end
+  @my.close
+
+rescue
+  bt = $!.backtrace
+  $stderr.puts "#{bt.shift}: #{$!.message} (#{$!.type})"
+  bt.each do |l|
+    $stderr.puts "\tfrom #{l}"
+  end
+  exit EX_TEMPFAIL
+end
+
+exit exit_code
