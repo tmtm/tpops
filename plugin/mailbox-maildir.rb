@@ -1,8 +1,9 @@
-# $Id: mailbox-maildir.rb,v 1.3 2004/06/10 11:20:22 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.4 2004/06/10 11:26:36 tommy Exp $
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
   "maildir-extended"		=> [/^(yes|no)$/i, "yes"],
+  "maildir-lock"		=> [/^(yes|no)$/i, "yes"],
 })
 
 class TPOPS
@@ -82,6 +83,7 @@ class TPOPS
     end
 
     def lock(maildir)
+      return if $conf["maildir-lock"] == "no"
       f = "#{maildir}/tpops_lock"
       f2 = "#{f}.#{$$}.#{Time.now.to_i.to_s}"
       begin
@@ -107,6 +109,7 @@ class TPOPS
     end
 
     def unlock()
+      return if $conf["maildir-lock"] == "no"
       File.rename @lock2, @lock rescue nil
       ObjectSpace.undefine_finalizer(self)
     end
