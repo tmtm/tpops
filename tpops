@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.18 2002/02/24 18:15:08 tommy Exp $
+# $Id: tpops,v 1.19 2002/03/04 18:30:17 tommy Exp $
 
 require 'socket'
 
@@ -185,12 +185,10 @@ class TPOPS
   def write_log()
     if LogFile then
       File::open(LogFile, 'a') do |f|
-	f.flock(File::LOCK_EX)
-	f.seek(IO::SEEK_END, 0)
-	f.puts sock_to_addr(@sock) + ' ' +
+	f.syswrite sock_to_addr(@sock) + ' ' +
 	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
 	  Time::now.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
-	  @user
+	  @user + "\n"
       end
     end
   end
