@@ -204,6 +204,9 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 [履歴]
 
+0.4.6a	2002-08-16
+	・クライアントが接続を切断した時に無限ループになるバグを修正
+
 0.4.6	2002-08-16
 	・メールボックスが ENOENT 以外のエラーの場合に異常終了するよう
 	  にした
@@ -272,4 +275,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.26 2002/08/15 16:21:39 tommy Exp $
+$Id: README.ja,v 1.27 2002/08/16 10:55:35 tommy Exp $

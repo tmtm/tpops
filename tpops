@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.28 2002/08/15 16:21:39 tommy Exp $
+# $Id: tpops,v 1.29 2002/08/16 10:55:35 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -65,7 +65,7 @@ class TPOPS
 	break if chr == ?\n
 	raise 'line exceed 1024 bytes' if ret.length >= 1024
       end
-      ret
+      ret == '' ? nil : ret
     end
 
     login_time = Time::now.to_i
