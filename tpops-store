@@ -1,11 +1,12 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-store,v 1.6 2001/05/19 23:40:45 tommy Exp $
+# $Id: tpops-store,v 1.7 2001/06/28 15:41:45 tommy Exp $
 
 require 'mysql'
 
 EX_OK = 0
 EX_USAGE = 64
 EX_NOUSER = 67
+EX_CANTCREAT = 73
 EX_TEMPFAIL = 75
 
 Dir = $0.sub(/[^\/]*$/, '')
@@ -18,6 +19,12 @@ end
 
 def store(msg)
   msg.gsub!(/\r\n/, "\n")
+  size = msg.gsub(/\n/, "\r\n").size
+  r = @my.query("select sum(size) from msg where uid=#{@uid}").fetch_row[0]
+  if r and r.to_i + size > @quota then
+    $stderr.puts "quota limit exceeded"
+    exit EX_CANTCREAT
+  end
   i = msg.index("\n\n")
   if i then
     h = msg[0, i+1]
@@ -26,7 +33,6 @@ def store(msg)
     h = msg
     b = ''
   end
-  size = msg.gsub(/\n/, "\r\n").size
   @my.query("insert into msg (uid,header,body,size,timestamp) values (#{@uid},'#{@my.quote h}','#{@my.quote b}',#{size},now())")
 end
 
@@ -35,12 +41,14 @@ begin
   mail = ARGV.shift
 
   @my = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-  res = @my.query("select uid from user where mail='#{@my.quote mail}'")
+  res = @my.query("select uid,quota from user where mail='#{@my.quote mail}'")
   if res.num_rows == 0 then
     puts "#{mail}: unknown user"
     exit EX_NOUSER
   end
-  @uid = res.fetch_row[0].to_i
+  uid, quota = res.fetch_row
+  @uid = uid.to_i
+  @quota = quota.to_i
 
   if ARGV.size == 0 then
     store $stdin.read
