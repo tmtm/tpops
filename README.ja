@@ -25,6 +25,8 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
     CommandTimeout:	コマンド待ち時間
     Mailbox:		"MySQL" または "Maildir"
     MaildirCRLF:	Maildir 形式の改行コードが "\r\n" かどうか(後述)
+    WithInetd:		inetd からの起動用
+    LogFile:		ログファイル名
 
     MySQL_Server:	MySQLサーバ
     MySQL_User:		MySQLユーザ
@@ -75,6 +77,13 @@ Mailbox が "MySQL" の場合、メールは msg テーブルで管理されます。msg テー
 
 	% cat ファイル名 | tpops-pipe メールアドレス メールアドレス...
 
+[ログファイル]
+
+tpops.conf で LogFile を指定すると、ログアウト時に指定したファイルにログ
+を書き込みます。ログの形式は次の通りです。
+
+	接続元IP ログイン日 時刻 ログアウト日 時刻 ログイン名
+
 [例]
 
 例えば Postfix で次のように設定すると、OS に登録されていないユーザ宛のメー
@@ -118,6 +127,10 @@ POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
 
 [履歴]
 
+0.3	2002-01-25
+	・WithInetd パラメータの導入
+	・LogFile パラメータの導入
+
 0.2.2	2001-12-28
 	・若干の高速化
 	・QUIT の応答時のエラーを無視
@@ -136,4 +149,4 @@ POP プロトコル上は、改行コードを２バイトとしてカウントする必要があります。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.8 2001/12/28 08:38:10 tommy Exp $
+$Id: README.ja,v 1.9 2002/01/25 08:54:34 tommy Exp $
