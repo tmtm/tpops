@@ -197,6 +197,9 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 [履歴]
 
+0.4.3	2002-06-27
+	・大きなメールの処理速度を向上
+
 0.4.2	2002-04-21
 	・Maildir++ 形式のファイル名を扱えるようにした (MaildirExtended)
 	・MaildirCRLF を MaildirUseFileSize に変更
@@ -246,4 +249,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.22 2002/04/21 06:18:46 tommy Exp $
+$Id: README.ja,v 1.23 2002/06/27 13:35:05 tommy Exp $
