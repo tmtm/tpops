@@ -1,0 +1,16 @@
+#!/usr/local/bin/ruby
+# $Id: popb4smtp-clean,v 1.1 2002/02/01 02:52:49 tommy Exp $
+
+require 'mysql'
+
+ScriptDir = File::dirname $0
+load ScriptDir+'/tpops.conf'
+
+Timeout = 600
+
+m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
+loop do
+  m.query("delete from pbs where unix_timestamp(now())-unix_timestamp(timestamp)>#{Timeout}")
+  sleep 60
+end
+m.close
