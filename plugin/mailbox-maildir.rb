@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.8 2004/06/29 23:53:55 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.9 2004/07/15 08:56:38 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -75,13 +75,14 @@ class TPOPS
 
     public
     def initialize(maildir)
+      @files = {}
+      return unless File.exist? maildir
       lock(maildir)
       files = read_maildir("#{maildir}/cur", false)
       files.concat read_maildir("#{maildir}/new", true)
       files.sort! do |a, b|
         a.mtime <=> b.mtime
       end
-      @files = {}
       files.each_index do |i|
         @files[i+1] = files[i]
       end
