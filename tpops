@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.12 2002/01/25 08:51:04 tommy Exp $
+# $Id: tpops,v 1.13 2002/01/28 15:56:29 tommy Exp $
 
 require 'socket'
 
@@ -17,6 +17,7 @@ class TPOPS
 
   def initialize()
     if defined? WithInetd and WithInetd then
+      $stderr = File::open(ErrorFile, 'a')
       connection(Socket::for_fd $stdin.fileno)
     else
       trap "CHLD", nil		# ignore child process's status
