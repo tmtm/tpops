@@ -1,11 +1,16 @@
 #!/usr/local/bin/ruby
+# $Id: tpops,v 1.44 2004/03/02 00:04:08 tommy Exp $
+#
+# Copyright (C) 2003-2004 TOMITA Masahiro
+# tommy@tmtm.org
+#
 
 require "getopts"
 require "syslog"
 require "etc"
 require File.dirname($0)+"/tserver"
 
-$version = "0.6.0"
+$version = "0.6"
 
 $port = 110
 $hostname = `uname -n`.chomp
@@ -80,81 +85,98 @@ end
 class TPOPS
 
   def initialize()
-    Syslog.open(File.basename($0), nil, $syslog_facility) if $syslog_facility
-    if $with_inetd then
-      File.open($error_log || "/dev/null", "a") do |f|
-	$stderr.reopen f
+    at_exit do
+      File.unlink $old_pid_file rescue nil if $old_pid_file
+    end
+    ts = nil
+    loop do
+      load_config
+      if $syslog_facility then
+        Syslog.close if Syslog.opened?
+        Syslog.open(File.basename($0), nil, $syslog_facility)
       end
-      begin
-	Process.uid = $uid if $uid
-	Process.euid = $uid if $uid
-	Process.gid = $gid if $gid
-	Conn.new(Socket.for_fd $stdin.fileno)
-      rescue
-	log_err $!.to_s
-	$stderr.puts Time.now.inspect
-	$stderr.flush
-	raise
+      call_by_inetd if $with_inetd
+
+      if $port != $old_port then
+        ts.close if ts
+        ts = TServer.new($port)
+        $old_port = $port
       end
-    else
-      if not $foreground then
-	if fork then
-	  exit
-	end
-	Process.setsid
-      end
-      if $error_log then
-	File.open($error_log, "a") do |f|
-	  $stderr.reopen f
-	end
-      end
-      if $pid_file then
-	File.open($pid_file, "w") do |f| f.puts $$ end
-      end
-      ts = TServer.new($port)
+
+      ts.handle_signal = false
       ts.on_child_start = Proc.new do
-	Process.uid = $uid if $uid
-	Process.euid = $uid if $uid
-	Process.gid = $gid if $gid
+        Process.uid = $uid if $uid
+        Process.euid = $uid if $uid
+        Process.gid = $gid if $gid
       end
+      unless $signal_setup then
+        trap "HUP" do
+          ts.terminate
+          ts.stop
+        end
+        trap "TERM" do
+          ts.terminate
+          exit
+        end
+        trap "INT" do
+          ts.interrupt
+          exit
+        end
+        $signal_setup = true
+      end
+
+      if $error_log then
+        File.open($error_log, "a") do |f|
+          $stderr.reopen f
+        end
+      end
+      if not $foreground and not $already_forked then
+        if fork then
+          exit
+        end
+        Process.setsid
+        $already_forked = true
+      end
+      File.unlink $old_pid_file rescue nil if $old_pid_file
+      $old_pid_file = nil
+      if $pid_file then
+        File.open($pid_file, "w") do |f| f.puts $$ end
+        $old_pid_file = $pid_file
+      end
+
       ts.min_servers = $min_servers
       ts.max_servers = $max_servers
       ts.max_use = $max_use
       ts.max_idle = $max_idle
-      after_load_config = Proc.new do |old_trap|
-	ts.min_servers = $min_servers
-	ts.max_servers = $max_servers
-	ts.max_use = $max_use
-	ts.max_idle = $max_idle
-	if $error_log then
-	  File.open($error_log, "a") do |f|
-	    $stderr.reopen f
-	  end
-	end
-	if $pid_file then
-	  File.open($pid_file, "w") do |f| f.puts $$ end
-	end
-	old_trap.call
-      end
-      old_hup_trap = trap "HUP" do
-	load_config
-	after_load_config.call(old_hup_trap)
-      end
-      old_usr1_trap = trap "USR1" do
-	load_config
-	after_load_config.call(old_usr1_trap)
-      end
       ts.start do |conn|
-	begin
-	  Conn.new conn
-	rescue
-	  log_err $!.to_s
-	  $stderr.puts Time.now.inspect
-	  $stderr.flush
-	  raise
-	end
+        begin
+          Conn.new conn
+        rescue
+          log_err $!.to_s
+          $stderr.puts Time.now.inspect
+          $stderr.flush
+          raise
+        end
       end
     end
+  end
+
+  def call_by_inetd()
+    File.open($error_log || "/dev/null", "a") do |f|
+      $stderr.reopen f
+    end
+    begin
+      Process.uid = $uid if $uid
+      Process.euid = $uid if $uid
+      Process.gid = $gid if $gid
+      Conn.new(Socket.for_fd($stdin.fileno))
+    rescue
+      log_err $!.to_s
+      $stderr.puts Time.now.inspect
+      $stderr.flush
+      raise
+    end
+    exit
   end
 
   class Conn
@@ -348,10 +370,10 @@ class TPOPS
 	end
 	u = @user == nil ? "()" : @status == :TRANSACTION ? @user : "(#{@user})"
 	File.open($access_log, "a") do |f|
-	  f.syswrite sprintf "%s %s %s %s %d %d %d %d\n",
+	  f.syswrite sprintf("%s %s %s %s %d %d %d %d\n",
 	    @peer_addr, @start_time.strftime("%Y/%m/%d %H:%M:%S"),
 	    Time.now.strftime("%Y/%m/%d %H:%M:%S"),
-	    u, s_msgs, s_size, msgs, size
+	    u, s_msgs, s_size, msgs, size)
 	end
       end
     end
@@ -500,6 +522,5 @@ if $OPT_version then
   puts "TPOPS version #{$version}"
   exit
 end
-load_config
 
 TPOPS.new

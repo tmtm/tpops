@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.8 2002/12/03 16:26:34 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.9 2004/03/02 00:04:08 tommy Exp $
 
 require 'etc'
 
@@ -19,11 +19,9 @@ class TPOPS
       end
       @login, @uid, @maildir = pw.name, pw.uid, pw.dir+'/Maildir/'
       if apop then
-	require 'bdb'
+        require 'dbm'
 	require 'md5'
-	apophash = BDB::Hash::open($apop_passwd_file, nil, 'r')
-	pw = apophash[@login+"\0"].chop
-	apophash.close
+	pw = DBM::open($apop_passwd_file, 0600)[@login]
 	return unless pw
 	if pass == MD5::new(apop+pw).hexdigest then
 	  @authorized = true
