@@ -1,10 +1,13 @@
-# $Id: mailbox-maildir.rb,v 1.7 2004/06/29 23:28:14 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.8 2004/06/29 23:53:55 tommy Exp $
+#
+# Copyright (C) 2003-2004 TOMITA Masahiro
+# tommy@tmtm.org
+#
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
   "maildir-extended"		=> [/^(yes|no)$/i, "yes"],
   "maildir-lock"		=> [/^(yes|no)$/i, "yes"],
-  "maildir-new2cur"		=> [/^(yes|no)$/i, "yes"],
 })
 
 class TPOPS
@@ -73,16 +76,8 @@ class TPOPS
     public
     def initialize(maildir)
       lock(maildir)
-      if $conf["maildir-new2cur"] == "yes" and File.directory? "#{maildir}/new" then
-        Dir.foreach("#{maildir}/new") do |f|
-          if f =~ /^(\d+)\./ then
-            File.rename("#{maildir}/new/#{f}", "#{maildir}/cur/#{File.basename(f)}:2,")
-          end
-        end
-      end
-
-      files = read_maildir("#{maildir}/cur")
-      files.concat read_maildir("#{maildir}/new", true) if $conf["maildir-new2cur"] != "yes"
+      files = read_maildir("#{maildir}/cur", false)
+      files.concat read_maildir("#{maildir}/new", true)
       files.sort! do |a, b|
         a.mtime <=> b.mtime
       end
@@ -246,7 +241,14 @@ class TPOPS
       @files.values.each do |f|
         if f.deleted? then
           f.real_delete
-        elsif not f.in_new and f.seen and not f.info.include? "S" then
+        elsif f.in_new then
+          if f.seen then
+            a = f.name.split(/\/+/)
+            a[-2] = "cur" if a[-2] == "new"
+            dest = a.join("/")+":2,S"
+            File.rename(f.name, dest)
+          end
+        elsif f.seen and not f.info.include? "S" then
           f.info = (f.info + "S").split(//).sort.join
           File.rename(f.name, f.name.split(/:/)[0]+":2,"+f.info)
         end
