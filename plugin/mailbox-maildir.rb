@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.10 2004/09/03 05:32:49 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.11 2004/09/22 16:30:03 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -110,7 +110,10 @@ class TPOPS
       rescue Errno::ENOENT
         ff = Dir.glob(f+".*")
         if ff.empty? then
-          File.open(f, File::WRONLY|File::CREAT|File::EXCL, 0600).close rescue nil
+          begin
+            File.open(f, File::WRONLY|File::CREAT|File::EXCL, 0666).close
+          rescue Errno::EEXIST
+          end
           retry
         end
         Dir.glob(f+".*") do |i|
