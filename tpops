@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.62 2004/09/03 07:16:16 tommy Exp $
+# $Id: tpops,v 1.63 2004/09/22 16:21:11 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -106,9 +106,14 @@ class TPOPS
 
       ts.handle_signal = false
       ts.on_child_start = Proc.new do
-        Process.uid = $uid if $uid
-        Process.euid = $uid if $uid
-        Process.gid = $gid if $gid
+        begin
+          Process.gid = $gid if $gid
+          Process.uid = $uid if $uid
+          Process.euid = $uid if $uid
+        rescue
+          log_err "setuid/setgid #{$!}"
+          sleep 5
+        end
       end
       unless @signal_setup then
         trap "HUP" do
