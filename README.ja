@@ -28,8 +28,8 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.4.2.tar.gz
-	# ln -s tpops-0.4.2 tpops
+	# tar xpfvz /tmp/tpops-0.4.5.tar.gz
+	# ln -s tpops-0.4.5 tpops
 
 2. tpops.conf を作成してください。サンプル(とデフォルト値)が 
    tpops.conf.sample にあります。
@@ -84,6 +84,13 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    tpops.conf の WithInetd を false に設定し、/usr/local/tpops/tpops 
    を実行します。
+
+[起動オプション]
+
+  --domain ドメイン名
+
+    ログイン名に「@」「%」「+」のいずれも含まれてない場合に、「@ドメイ
+    ン名」をログイン名に追加して認証を試みます。
 
 [ユーザ登録]
 
@@ -197,6 +204,11 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 [履歴]
 
+0.4.5	2002-08-01
+	・ログが取れないことがあるバグを修正
+	・ごく稀に EINTR エラーになることがあるバグを修正
+	・--domain オプションを追加
+
 0.4.4	2002-07-03
 	・TOP がエラーになるバグを修正
 	・MaildirUseFileSize が未定義になるバグを修正
@@ -253,4 +265,4 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.24 2002/07/02 17:06:13 tommy Exp $
+$Id: README.ja,v 1.25 2002/08/03 15:01:20 tommy Exp $

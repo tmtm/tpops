@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.26 2002/07/11 00:59:17 tommy Exp $
+# $Id: tpops,v 1.27 2002/08/03 15:01:20 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -52,13 +52,18 @@ class TPOPS
     @user = nil
     @apopkey = Auth::apop? ? "<#{$$}.#{Time::now.to_i}@#{Hostname}>" : ''
 
-    Thread::new do sleep ConnectionKeepTime; exit end
+    login_time = Time::now.to_i
 
     @sock.write "+OK TPOPS ready. #{@apopkey}\r\n"
     loop do
-      timeout_thr = Thread::new do sleep CommandTimeout; exit end
+      select_ret = select([@sock], nil, nil, CommandTimeout)
+      if select_ret == nil then
+	exit
+      end
+      if Time::now.to_i - login_time > ConnectionKeepTime then
+	exit
+      end
       r = @sock.gets
-      timeout_thr.kill
       if not r then break end
       r = r.chomp.sub(/\r$/, '')
       comm = r.split
@@ -178,6 +183,7 @@ class TPOPS
       err "cannot lock for #{@user}"
       exit
     end
+    @peer_addr = sock_to_addr @sock
     at_exit do
       auth.unlock()
       write_log
@@ -191,7 +197,7 @@ class TPOPS
   def write_log()
     if LogFile then
       File::open(LogFile, 'a') do |f|
-	f.syswrite sock_to_addr(@sock) + ' ' +
+	f.syswrite @peer_addr + ' ' +
 	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
 	  Time::now.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
 	  @user + "\n"
@@ -338,6 +344,6 @@ end
 unless getopts(nil, 'domain:') then
   raise 'unknown options'
 end
-$default_domain = $OPT_domain if $OPT_domain
+$default_domain = $OPT_domain
 TPOPS::new
 
