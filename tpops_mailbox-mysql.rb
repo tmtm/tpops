@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-mysql.rb,v 1.2 2002/03/20 15:54:19 tommy Exp $
+# $Id: tpops_mailbox-mysql.rb,v 1.3 2002/04/10 18:03:38 tommy Exp $
 
 require 'mysql'
 
@@ -61,7 +61,21 @@ class TPOPS
     def retr(msg)
       h, b = exist? msg, 'header, body'
       if h == nil then return nil end
-      h.gsub(/\n/, "\r\n") + "\r\n" + b.gsub(/\n/, "\r\n")
+      if b[-1,1] != "\n" then b << "\n" end
+      if not iterator? then
+	h.gsub!(/\n/, "\r\n")
+	b.gsub!(/\n/, "\r\n")
+	return h+"\r\n"+b
+      end
+      h.each do |line|
+	line.gsub!(/\n/, "\r\n")
+	yield line
+      end
+      yield "\r\n"
+      b.each do |line|
+	line.gsub!(/\n/, "\r\n")
+	yield line
+      end
     end
 
     def dele(msg)

@@ -28,8 +28,8 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.4.0.tar.gz
-	# ln -s tpops-0.4.0 tpops
+	# tar xpfvz /tmp/tpops-0.4.1.tar.gz
+	# ln -s tpops-0.4.1 tpops
 
 2. tpops.conf を作成してください。サンプルが tpops.conf.sample にあります。
 
@@ -195,6 +195,9 @@ true」を設定してください。
 
 [履歴]
 
+0.4.1	2002-04-11
+	・大きなメールの RETR/TOP 時の速度とメモリ効率を向上
+
 0.4	2002-03-21
 	・認証方式とメールボックス方式を本体から分離
 	・OS の /etc/passwd をユーザ認証に使用できるようにした
@@ -235,4 +238,4 @@ true」を設定してください。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.18 2002/03/21 06:00:06 tommy Exp $
+$Id: README.ja,v 1.19 2002/04/10 18:03:38 tommy Exp $

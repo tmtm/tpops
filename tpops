@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.21 2002/03/21 06:00:06 tommy Exp $
+# $Id: tpops,v 1.22 2002/04/10 18:03:38 tommy Exp $
 
 require 'socket'
 
@@ -232,19 +232,16 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    msg = @mailbox.retr(arg[0].to_i)
-    if not msg then
+    m, size = @mailbox.list(arg[0].to_i)
+    if not m then
       err 'no such message'
       return
     end
-    ok "#{msg.size} octets"
+    ok "#{size} octets"
     @sock.sync = false
-    msg.each do |line|
+    @mailbox.retr(arg[0].to_i) do |line|
       if line[0] == ?. then line[0,0] = '.' end
       @sock.write line
-    end
-    if msg[-2..-1] != "\r\n"
-      @sock.write "\r\n"
     end
     @sock.sync = true
     @sock.write ".\r\n"
@@ -284,19 +281,15 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    msg = @mailbox.top arg[0].to_i, arg[1].to_i
-    if not msg then
+    if not @mailbox.list(arg[0].to_i) then
       err 'no such message'
       return
     end
     ok
     @sock.sync = false
-    msg.each do |line|
+    @mailbox.top(arg[0].to_i, arg[1].to_i) do |line|
       if line[0] == ?. then line[0,0] = '.' end
       @sock.write line
-    end
-    if msg[-2..-1] != "\r\n"
-      @sock.write "\r\n"
     end
     @sock.sync = true
     @sock.write ".\r\n"

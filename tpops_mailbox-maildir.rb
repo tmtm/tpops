@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.3 2002/03/18 09:45:03 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.4 2002/04/10 18:03:38 tommy Exp $
 
 class TPOPS
 
@@ -78,9 +78,19 @@ class TPOPS
 
     def retr(msg)
       if not exist? msg then return nil end
-      r = File::open(@files[msg-1].name) do |f| f.read end
-      r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
-      r
+      if not iterator? then
+	r = File::open(@files[msg-1].name) do |f| f.read end
+	if r[-1,1] != "\n" then line << "\n" end
+	r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	r
+      end
+      File::open(@files[msg-1].name) do |f|
+	f.each do |line|
+	  if line[-1,1] != "\n" then line << "\n" end
+	  line.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	  yield line
+	end
+      end
     end
 
     def dele(msg)
@@ -97,16 +107,31 @@ class TPOPS
 
     def top(msg, lines)
       if not exist? msg then return nil end
-      r = File::open(@files[msg-1].name) do |f| f.read end
-      r.gsub!(/(^|[^\r])\n/, "\\1\r\n")
-      if r =~ /\r\n\r\n/ then
-	h = $` + "\r\n"	#`
-	b = $'		#'
-      else
-	h = r
-	b = ''
+      ret = ''
+      File::open(@files[msg-1].name) do |f|
+	f.each do |line|
+	  break if line =~ /^\r?$/
+	  if line[-1,1] != "\n" then line << "\n" end
+	  line.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	  if iterator? then
+	    yield line
+	  else
+	    ret << line
+	  end
+	end
+	yield "\r\n"
+	f.each do |line|
+	  break if lines <= 0
+	  if line[-1,1] != "\n" then line << "\n" end
+	  line.gsub!(/(^|[^\r])\n/, "\\1\r\n")
+	  if iterator? then
+	    yield line
+	  else
+	    ret << line
+	  end
+	  lines -= 1
+	end
       end
-      h + "\r\n" + b.split(/^/)[0,lines].join
     end
 
     def uidl_all()
