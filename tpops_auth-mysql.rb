@@ -1,4 +1,4 @@
-# $Id: tpops_auth-mysql.rb,v 1.1 2002/02/06 17:58:02 tommy Exp $
+# $Id: tpops_auth-mysql.rb,v 1.2 2002/03/20 15:54:19 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -36,6 +36,7 @@ class TPOPS
     def lock()
       m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
       begin
+	m.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{ConnectionKeepTime}")
 	m.query("insert ignore into locks (uid) values ('#{@uid}')")
 	if m.affected_rows == 0 then
 	  return false

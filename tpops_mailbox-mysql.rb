@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-mysql.rb,v 1.1 2002/02/06 17:58:02 tommy Exp $
+# $Id: tpops_mailbox-mysql.rb,v 1.2 2002/03/20 15:54:19 tommy Exp $
 
 require 'mysql'
 
@@ -83,9 +83,10 @@ class TPOPS
     end
 
     def top(msg, lines)
-      h, b = exist? msg, 'header, substring_index(body,"\n",#{lines})'
+      h, b = exist? msg, "header, substring_index(body,\"\\n\",#{lines})"
       if h == nil then return nil end
-      h.gsub(/\n/, "\r\n") + "\r\n" + b.gsub(/\n/, "\r\n") + "\r\n"
+      if b != '' and b[-1,1] != "\n" then b << "\n" end
+      h.gsub(/\n/, "\r\n") + "\r\n" + b.gsub(/\n/, "\r\n")
     end
 
     def uidl_all()

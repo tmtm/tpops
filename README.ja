@@ -70,6 +70,11 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
    OS にユーザを登録してください。MailboxType が 'Maildir' の場合、ユー
    ザのホームディレクトリ直下の 'Maildir' が使用されます。
 
+   APOP を使用する場合は、tpops.conf 内に APOPPasswd を設定してくださ
+   い。ここで指定するファイル名は、ログイン名をキーとしてプレーンパス
+   ワードを検索できるような GDBM 形式のファイルです。APOP 使用時にはこ
+   のファイルから、パスワードが検索されます。
+
 2. AuthType が 'MySQL' の場合
 
    user テーブルにユーザ情報を登録してください。
@@ -209,4 +214,4 @@ true」を設定してください。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.16 2002/02/26 16:25:55 tommy Exp $
+$Id: README.ja,v 1.17 2002/03/20 15:54:19 tommy Exp $

@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.3 2002/03/18 09:45:03 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.4 2002/03/20 15:54:19 tommy Exp $
 
 require 'etc'
 
@@ -6,10 +6,9 @@ class TPOPS
   class Auth
 
     PasswdLockDir = '/var/tmp/tpops' unless defined? PasswdLockDir
-    APOPPasswd = '/etc/tpops-apoppw' unless defined? APOPPasswd
 
     def Auth::apop?()
-      true
+      defined? APOPPasswd
     end
 
     def initialize(user, pass, apop=nil)
@@ -50,6 +49,13 @@ class TPOPS
     def lock()
       lockfile = "#{PasswdLockDir}/#{@uid}"
       Dir::mkdir PasswdLockDir, 0700 unless File::exists? PasswdLockDir
+      if File::exists? lockfile then
+	if Time::now - File::stat(lockfile).mtime > ConnectionKeepTime then
+	  File::unlink lockfile
+	else
+	  return false
+	end
+      end
       File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600).close rescue return false
       true
     end
