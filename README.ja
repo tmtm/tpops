@@ -244,6 +244,6 @@ tpops.conf に「MaildirExtended = true」を設定してください。
 
 [作者]
 
-とみたまさひろ <tommy@mysql.gr.jp>
+とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.21 2002/04/21 05:31:48 tommy Exp $
+$Id: README.ja,v 1.22 2002/04/21 06:18:46 tommy Exp $
