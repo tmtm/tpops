@@ -1,6 +1,7 @@
-# $Id: tserver.rb,v 1.1 2002/12/03 16:26:34 tommy Exp $
+# $Id: tserver.rb,v 1.14 2003/04/17 08:49:51 tommy Exp $
 
 require 'socket'
+require 'fcntl'
 
 class TServer
 
@@ -11,11 +12,14 @@ class TServer
     @max_idle = 100
     @children = []
     @connections = []
-    if args.length == 1 and args[0].is_a? TCPSocket then
+    @exited_pids = []
+    if args.length == 1 and (args[0].is_a? BasicSocket or args[0].is_a? Socket) then
       @sock = args[0]
     else
       @sock = TCPServer::new(*args)
     end
+    m = @sock.fcntl(Fcntl::F_GETFL, 0)
+    @sock.fcntl(Fcntl::F_SETFL, Fcntl::O_NONBLOCK|m)
     @old_trap = {}
     @old_trap['CHLD'] = trap 'CHLD' do
       if on_child_exit then
@@ -23,7 +27,7 @@ class TServer
       end
     end
     @old_trap['TERM'] = trap 'TERM' do
-      @to_child.each_value do |f| f.puts 'exit' end
+      @to_child.each_value do |f| f.puts 'exit' rescue nil end
       if @old_trap['TERM'] then
 	@old_trap['TERM'].call
       else
@@ -31,11 +35,11 @@ class TServer
       end
     end
     @old_trap['HUP'] = trap 'HUP' do
-      @to_child.each_value do |f| f.puts 'exit' end
+      @to_child.each_value do |f| f.puts 'exit' rescue nil end
       @old_trap['HUP'].call if @old_trap['HUP']
     end
     @old_trap['USR1'] = trap 'USR1' do
-      @to_child.each_value do |f| f.puts 'exit' end
+      @to_child.each_value do |f| f.puts 'exit' rescue nil end
       @old_trap['USR1'].call if @old_trap['USR1']
     end
     @old_trap['INT'] = trap 'INT' do
@@ -68,14 +72,18 @@ class TServer
       if IO::select([@from_child], nil, nil, 1) then
 	from_child @from_child.gets.chomp
       end
-      if @children.size > @min_servers then
-	now = Time::now.to_i
-	@children.each do |pid|
-	  if @last_connect[pid] and @max_idle and
-	      now - @last_connect[pid] > @max_idle then
-	    @to_child[pid].puts 'exit' rescue true
-	    break
-	  end
+      while pid = @exited_pids.shift do
+	@children.delete pid
+	@connections.delete pid
+	@to_child[pid].close
+	@to_child.delete pid
+	@last_connect.delete pid
+      end
+      now = Time::now.to_i
+      @children.each do |pid|
+	if @last_connect[pid] and @max_idle and
+	    now - @last_connect[pid] > @max_idle then
+	  @to_child[pid].puts 'exit' rescue true
 	end
       end
       if @children.size < @min_servers then
@@ -105,13 +113,7 @@ class TServer
       rescue Errno::ECHILD	# for Linux bug?
       end
     end
-    exited_pids.each do |pid|
-      @children.delete pid
-      @connections.delete pid
-      @to_child[pid].close
-      @to_child.delete pid
-      @last_connect.delete pid
-    end
+    @exited_pids.concat exited_pids
     return exited_pids.empty?
   end
 
@@ -131,7 +133,6 @@ class TServer
   def from_parent(str)
     case str
     when 'exit'
-      @on_child_exit.call if defined? @on_child_exit
       exit
     end
   end
@@ -144,29 +145,35 @@ class TServer
       pipe[1].close unless pipe[1].closed?
       @from_child.close
       trap 'SIGCHLD', 'SIG_DFL'
-      trap 'SIGTERM', 'SIG_DFL'
+      trap 'SIGTERM' do exit end
       trap 'SIGHUP', 'SIG_DFL'
       trap 'SIGUSR1', 'SIG_DFL'
       @on_child_start.call if defined? @on_child_start
+      at_exit do
+	@on_child_exit.call if defined? @on_child_exit
+      end
       cnt = 0
       while @max_request_per_child == 0 or cnt < @max_request_per_child
 	r, = IO::select([@sock, @from_parent])
 	if r.include? @from_parent then
 	  msg = @from_parent.gets
 	  if msg == nil then
-	    break
+	    exit
 	  end
 	  from_parent msg.chomp
 	  next
 	end
-	s = @sock.accept
+	begin
+	  s = @sock.accept
+	rescue Errno::EAGAIN
+	  next
+	end
 	@to_parent.puts "#{$$} connect"
 	block.call(s)
 	s.close unless s.closed?
-	@to_parent.puts "#{$$} disconnect"
+	@to_parent.puts "#{$$} disconnect" rescue nil
 	cnt += 1
       end
-      @on_child_exit.call if defined? @on_child_exit
     end
     @children << pid
     pipe[0].close

@@ -1,4 +1,4 @@
-# $Id: tpops_auth-mysql.rb,v 1.4 2002/12/03 16:26:34 tommy Exp $
+# $Id: tpops_auth-mysql.rb,v 1.5 2003/04/19 04:52:00 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -21,8 +21,18 @@ class TPOPS
     end
 
     def initialize(user, pass, apop=nil)
-      res = my.query(sprintf($mysql_auth_query, my.quote user))
-      return if res.num_rows == 0
+      if $mysql_auth_query.is_a? Array
+	queries = $mysql_auth_query
+      else
+	queries = [$mysql_auth_query]
+      end
+      res = nil
+      queries.each do |qu|
+	res = my.query(sprintf(qu, my.quote user))
+	break if res.num_rows > 0
+	res = nil
+      end
+      return unless res
       login, pw, uid, maildir = res.fetch_row
       if not apop then
 	return unless pass == pw

@@ -495,7 +495,7 @@ unless getopts(nil, 'f:', 'domain:', 'fg', 'port:', 'debug', 'version', 'inetd',
   raise 'unknown options'
 end
 if $OPT_version then
-  puts "TPOPS version 0.5.2"
+  puts "TPOPS version 0.5.3"
   exit
 end
 load_config
