@@ -53,6 +53,7 @@ msg テーブルにメッセージを登録してください。
 	timestamp	メッセージ到着日時
 	header		へッダ部
 	body		本文部
+	size		メッセージサイズ
 
 簡単に登録するためのコマンド tpops-store も用意してます。
 
@@ -87,4 +88,4 @@ unknown のエラーメールが送信者に返されます。
 
 とみたまさひろ <tommy@mysql.gr.jp>
 
-$Id: README.ja,v 1.2 2001/05/19 23:01:37 tommy Exp $
+$Id: README.ja,v 1.3 2001/05/20 10:13:11 tommy Exp $
