@@ -1,4 +1,4 @@
-# $Id: tpops_sub.rb,v 1.4 2001/08/01 00:39:22 tommy Exp $
+# $Id: tpops_sub.rb,v 1.5 2002/02/06 17:55:10 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -7,33 +7,6 @@ class TPOPS
 
   def mycon()
     Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-  end
-
-  def auth(user, pass)
-    m = mycon
-    res = m.query(sprintf(AuthQuery, m.quote user))
-    if res.num_rows != 1 then
-      return false
-    end
-    uid, p = res.fetch_row
-    if pass != p then
-      return false
-    end
-    @uid = uid.to_i
-    m.close
-    return true
-  end
-
-  def apop_auth(user, key)
-    m = mycon
-    res = m.query(sprintf(AuthQuery, m.quote user))
-    if res.num_rows != 1 then
-      return false
-    end
-    uid, pass = res.fetch_row
-    @uid = uid.to_i
-    m.close
-    MD5::new(@apopkey+pass).hexdigest == key
   end
 
   def reset_msgno()
