@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.4 2004/06/10 11:26:36 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.5 2004/06/10 13:25:37 tommy Exp $
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
@@ -12,25 +12,29 @@ class TPOPS
     def initialize(name, size, mtime)
       @name, @size, @mtime = name, size, mtime
       @deleted = false
+      @seen = false
     end
-    attr_reader :no, :name, :size, :mtime, :deleted
-    attr_writer :no
+    attr_reader :name, :size, :mtime, :seen
+    attr_writer :seen
     def deleted?() @deleted end
     def delete() @deleted = true end
     def undelete() @deleted = false end
 
     def real_delete()
-      File.unlink @name
-      @deleted = :real_delete
+      begin
+        File.unlink @name
+        @deleted = :real_delete
+      rescue
+        log_err "delete failed: #{@name}: #{$!}"
+      end
     end
   end
 
   class MailboxMaildir
     private
     def exist?(msg)
-      if msg <= 0 then return nil end
-      if @files.size < msg then return nil end
-      if @files[msg-1].deleted? then return nil end
+      if not @files.key? msg then return nil end
+      if @files[msg].deleted? then return nil end
       true
     end
 
@@ -42,37 +46,38 @@ class TPOPS
     public
     def initialize(maildir)
       lock(maildir)
+      if File.directory? "#{maildir}/new" then
+        Dir.foreach("#{maildir}/new") do |f|
+          if f =~ /^(\d+)\./ then
+            File.rename("#{maildir}/new/#{f}", "#{maildir}/cur/#{File.basename(f)}:2,")
+          end
+        end
+      end
       files = []
-      [maildir+'/cur', maildir+'/new'].each do |path|
-	begin
-	  File.stat(path)
-	rescue Errno::ENOENT
-	  next
-	end
-	Dir.foreach(path) do |f|
+      if File.directory? "#{maildir}/cur" then
+	Dir.foreach("#{maildir}/cur") do |f|
 	  if f =~ /^(\d+)\./ then
 	    mtime = $1.to_i
-	    p = path+'/'+f
+	    p = "#{maildir}/cur/#{f}"
 	    if $conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
 	      size = $1.to_i
-	    else
-	      if $conf["maildir-use-filesize"] == "yes" then
-		s = File.stat(p)
-		size = s.size
-	      else
-		r = File.open(p) do |f| f.read end
-		size = r.gsub(/\n/, "\r\n").size
-	      end
+	    elsif $conf["maildir-use-filesize"] == "yes" then
+              s = File.stat(p)
+              size = s.size
+            else
+              r = File.open(p) do |f| f.read end
+              size = r.gsub(/\n/, "\r\n").size
 	    end
 	    files << FileStat.new(p, size, mtime)
 	  end
 	end
       end
-      @files = files.sort do |a, b|
+      files.sort! do |a, b|
 	a.mtime <=> b.mtime
       end
-      @files.each_index do |i|
-	@files[i].no = i+1
+      @files = {}
+      files.each_index do |i|
+        @files[i+1] = files[i]
       end
     end
 
@@ -117,7 +122,7 @@ class TPOPS
     def stat()
       cnt = 0
       size = 0
-      @files.each do |f|
+      @files.values.each do |f|
 	if not f.deleted? then
 	  size += f.size
 	  cnt += 1
@@ -128,9 +133,9 @@ class TPOPS
 
     def list_all()
       ret = []
-      @files.each do |f|
-	if not f.deleted? then
-	  ret << [f.no, f.size]
+      @files.keys.sort.each do |m|
+	if not @files[m].deleted? then
+	  ret << [m, @files[m].size]
 	end
       end
       ret
@@ -138,33 +143,35 @@ class TPOPS
 
     def list(msg)
       if not exist? msg then return nil end
-      [msg, @files[msg-1].size]
+      [msg, @files[msg].size]
     end
 
     def retr(msg)
       if not exist? msg then return nil end
       if not iterator? then
-	r = File.open(@files[msg-1].name) do |f| f.read end
-	if r[-1] != ?\n then r << "\n" end
-	r.gsub!(/(^|[^\r])\n/o, "\\1\r\n")
-	return r
+        r = File.open(@files[msg].name) do |f| f.read end
+        if r[-1] != ?\n then r << "\n" end
+        r.gsub!(/(^|[^\r])\n/o, "\\1\r\n")
+        @files[msg].seen = true
+        return r
       end
-      File.open(@files[msg-1].name) do |f|
-	f.each do |line|
-	  normalize_line line
-	  yield line
-	end
+      File.open(@files[msg].name) do |f|
+        f.each do |line|
+          normalize_line line
+          yield line
+        end
       end
+      @files[msg].seen = true
     end
 
     def dele(msg)
       if not exist? msg then return nil end
-      @files[msg-1].delete
+      @files[msg].delete
       true
     end
 
     def rset()
-      @files.each do |f|
+      @files.values.each do |f|
 	f.undelete
       end
     end
@@ -172,39 +179,39 @@ class TPOPS
     def top(msg, lines)
       if not exist? msg then return nil end
       ret = ''
-      File.open(@files[msg-1].name) do |f|
-	f.each do |line|
-	  break if line =~ /^\r?$/
-	  normalize_line line
-	  if iterator? then
-	    yield line
-	  else
-	    ret << line
-	  end
-	end
-	if iterator? then
-	  yield "\r\n"
-	else
-	  ret << "\r\n"
-	end
-	f.each do |line|
-	  break if lines <= 0
-	  normalize_line line
-	  if iterator? then
-	    yield line
-	  else
-	    ret << line
-	  end
-	  lines -= 1
-	end
+      File.open(@files[msg].name) do |f|
+        f.each do |line|
+          break if line =~ /^\r?$/
+          normalize_line line
+          if iterator? then
+            yield line
+          else
+            ret << line
+          end
+        end
+        if iterator? then
+          yield "\r\n"
+        else
+          ret << "\r\n"
+        end
+        f.each do |line|
+          break if lines <= 0
+          normalize_line line
+          if iterator? then
+            yield line
+          else
+            ret << line
+          end
+          lines -= 1
+        end
       end
     end
 
     def uidl_all()
       ret = []
-      @files.each do |f|
-	if not f.deleted? then
-	  ret << [f.no, File.basename(f.name).split(/:/)[0]]
+      @files.keys.sort.each do |m|
+	if not @files[m].deleted? then
+	  ret << [m, File.basename(@files[m].name).split(/:/)[0]]
 	end
       end
       ret
@@ -212,22 +219,29 @@ class TPOPS
 
     def uidl(msg)
       if not exist? msg then return nil end
-      [msg, File.basename(@files[msg-1].name).split(/:/)[0]]
+      [msg, File.basename(@files[msg].name).split(/:/)[0]]
     end
 
     def commit()
-      @files.each do |f|
+      @files.values.each do |f|
 	if f.deleted? then
           f.real_delete
-	end
+        elsif f.seen then
+          info = f.name =~ /:2,(\w+)$/ ? $1 : ""
+          unless info.include? "S" then
+            info << "S"
+            info = info.split(//).sort.join
+            File.rename(f.name, f.name.split(/:/)[0]+":2,"+info)
+          end
+        end
       end
     end
 
     def real_stat()
       cnt = 0
       size = 0
-      @files.each do |f|
-	if f.deleted != :real_delete then
+      @files.values.each do |f|
+	if f.deleted? != :real_delete then
 	  size += f.size
 	  cnt += 1
 	end
