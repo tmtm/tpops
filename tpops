@@ -1,6 +1,7 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.25 2002/07/02 17:06:13 tommy Exp $
+# $Id: tpops,v 1.26 2002/07/11 00:59:17 tommy Exp $
 
+require 'getopts'
 require 'socket'
 
 $LOAD_PATH.unshift File::dirname($0)
@@ -119,6 +120,9 @@ class TPOPS
     end
     ok 'password required'
     @user = arg[0]
+    if $default_domain and @user !~ /[@%\+]/ then
+      @user = @user+'@'+$default_domain
+    end
   end
 
   def comm_pass(arg)
@@ -331,5 +335,9 @@ class TPOPS
 
 end
 
+unless getopts(nil, 'domain:') then
+  raise 'unknown options'
+end
+$default_domain = $OPT_domain if $OPT_domain
 TPOPS::new
 
