@@ -6,7 +6,7 @@ message can be controled by MySQL table.
 
 [Requirement]
 
-  Ruby 1.6.8
+  Ruby 1.6.8 or 1.8.1
 	http://www.ruby-lang.org
 
   ruby-shadow 1.4.x	needed if using shadow password.
@@ -27,9 +27,9 @@ message can be controled by MySQL table.
 
    ex)
 	# cd /usr/local
-	# tar xpvfz /tmp/tpops-0.5.4.tar.gz
-	# chown -R root:root tpops-0.5.4
-	# ln -s tpops-0.5.4 tpops
+	# tar xpvfz /tmp/tpops-0.5.5.tar.gz
+	# chown -R root:root tpops-0.5.5
+	# ln -s tpops-0.5.5 tpops
 
 2. make tpops.conf. The example and default value are in
    tpops.conf.sample.
@@ -221,6 +221,10 @@ This program is under Ruby license.
 
 [History]
 
+0.5.5	2004-03-18
+	* use tserver 0.1.1
+	* for Ruby 1.8.1
+
 0.5.4	2003-09-10
 	* [BUG] error on syslog width string including "%".
 
@@ -261,4 +265,4 @@ This program is under Ruby license.
 
 TOMITA Masahiro <tommy@tmtm.org>
 
-$Id: README,v 1.11 2003/10/27 08:15:06 tommy Exp $
+$Id: README,v 1.11.4.1 2004/03/18 06:49:32 tommy Exp $
