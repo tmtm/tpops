@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops-store,v 1.4 2001/05/19 08:53:05 tommy Exp $
+# $Id: tpops-store,v 1.5 2001/05/19 22:47:33 tommy Exp $
 
 require 'mysql'
 
@@ -17,16 +17,17 @@ if ARGV.size < 1 then
 end
 
 def store(msg)
-  i = msg.index(/\r?\n\r?\n/)
+  msg.gsub!(/\r\n/, "\n")
+  i = msg.index("\n\n")
   if i then
-    i += 4
-    h = msg[0, i]
-    b = msg[i..-1]
+    h = msg[0, i+1]
+    b = msg[i+2 .. -1]
   else
     h = msg
     b = ''
   end
-  @my.query("insert into msg (uid,header,body,timestamp) values (#{@uid},'#{@my.quote h}','#{@my.quote b}',now())")
+  size = msg.gsub(/\n/, "\r\n").size
+  @my.query("insert into msg (uid,header,body,size,timestamp) values (#{@uid},'#{@my.quote h}','#{@my.quote b}',#{size},now())")
 end
 
 begin 
@@ -53,7 +54,7 @@ begin
 
   @my.close
 
-rescue
+rescue Exception
   bt = $!.backtrace
   $stderr.puts "#{bt.shift}: #{$!.error} (#{$!.type})"
   bt.each do |l|

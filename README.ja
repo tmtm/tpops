@@ -1,0 +1,90 @@
+TPOPS - Tommy's POP Server
+
+TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby + MySQL で実装
+されています。
+
+[インストール]
+
+0. MySQL をインストールして、TPOPS 用のデータベースを作成しておいてくだ
+   さい。
+
+1. tpops, tpops_sub.rb, tpops.conf を同じディレクトリに置いてください。
+
+    例)
+	# mkdir /usr/local/tpops
+	# cp tpops tpops_sub.rb tpops.conf /usr/local/tpops
+
+2. tpops.conf を編集してください。
+
+    Port:	ポート番号
+    Hostname:	自分のホスト名
+    ConnectionKeepTime:	最大接続時間
+    CommandTimeout:	コマンド待ち時間
+
+    MySQL_Server:	MySQLサーバ
+    MySQL_User:		MySQLユーザ
+    MySQL_Pass:		MySQLユーザのパスワード
+    MySQL_DB:		MySQLデータベース
+
+3. TPOPS 用のテーブルを MySQL に作成してください。
+
+    例)
+	% mysql DB名 < sql.txt
+
+[ユーザ登録]
+
+user テーブルにユーザ情報を登録してください。
+
+	uid		ユーザID(数値)
+	login		POPログイン名
+	passwd		POPパスワード
+	mail		メールアドレス
+
+簡単に登録するためのコマンド tpops-useradd も用意してます。
+
+	% tpops-useradd  ログイン名  パスワード  メールアドレス
+
+[メール登録]
+
+msg テーブルにメッセージを登録してください。
+
+	id		メッセージ番号
+	uid		ユーザID
+	timestamp	メッセージ到着日時
+	header		へッダ部
+	body		本文部
+
+簡単に登録するためのコマンド tpops-store も用意してます。
+
+	% tpops-store メールアドレス ファイル名
+
+指定したファイルを登録します。ファイル名は複数指定できます。ファイル名を
+指定しない場合は標準入力から読み込みます。
+
+	% cat ファイル名 | tpops-store メールアドレス
+
+[例]
+
+例えば Postfix で次のように設定すると、OS に登録されていないユーザ宛のメー
+ルが TPOPS に渡されます。TPOPS にも登録されていない場合は、user
+unknown のエラーメールが送信者に返されます。
+
+  /etc/postfix/main.cf
+	fallback_transport = tpops
+
+  /etc/postfix/master.cf
+	tpops  unix  -  n  n  -  -  pipe
+	  user=nobody argv=/usr/local/tpops/tpops-store ${recipient}
+
+
+[注意]
+
+正常に動作することを期待して作られていますが、不具合がないことは保証でき
+ません。メールデータがロストすることがあるかもしれません。十分テストした
+上でご使用ください。
+
+[作者]
+
+とみたまさひろ <tommy@mysql.gr.jp>
+
+$Id: README.ja,v 1.1 2001/05/19 22:47:33 tommy Exp $

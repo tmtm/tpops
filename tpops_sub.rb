@@ -1,4 +1,4 @@
-# $Id: tpops_sub.rb,v 1.2 2001/05/06 15:17:52 tommy Exp $
+# $Id: tpops_sub.rb,v 1.3 2001/05/19 22:47:33 tommy Exp $
 
 require 'md5'
 require 'mysql'
@@ -64,7 +64,7 @@ class TPOPS
 
   def stat()
     m = mycon
-    res = m.query("select count(*), sum(length(header)+length(body)) from msg where uid='#{@uid}' and msgno > 0")
+    res = m.query("select count(*), sum(size) from msg where uid='#{@uid}' and msgno > 0")
     msgs, size = res.fetch_row
     m.close
     return msgs.to_i, size.to_i
@@ -82,7 +82,7 @@ class TPOPS
 
   def list_all()
     m = mycon
-    res = m.query("select msgno, length(header)+length(body) from msg where uid='#{@uid}' and msgno > 0 order by msgno")
+    res = m.query("select msgno, size from msg where uid='#{@uid}' and msgno > 0 order by msgno")
     ret = []
     res.each do |nn, mm|
       ret << [nn.to_i, mm.to_i]
@@ -92,7 +92,7 @@ class TPOPS
   end
 
   def list(msg)
-    nn, mm = exist? msg, 'msgno, length(header)+length(body)'
+    nn, mm = exist? msg, 'msgno, size'
     if nn == nil then return nil end
     return nn.to_i, mm.to_i
   end
@@ -100,7 +100,7 @@ class TPOPS
   def retr(msg)
     h, b = exist? msg, 'header, body'
     if h == nil then return nil end
-    h + b
+    h.gsub(/\n/, "\r\n") + "\r\n" + b.gsub(/\n/, "\r\n")
   end
 
   def dele(msg)
@@ -124,7 +124,7 @@ class TPOPS
   def top(msg, lines)
     h, b = exist? msg, 'header, body'
     if h == nil then return nil end
-    h + b.split(/^/)[0,lines].join
+    h.gsub(/\n/, "\r\n") + "\r\n" + b.split(/^/)[0,lines].join.gsub(/\n/, "\r\n")
   end
 
   def uidl_all()
