@@ -1,11 +1,11 @@
-# $Id: tpops_auth-passwd.rb,v 1.10 2004/03/21 13:26:36 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.11 2004/03/22 01:39:49 tommy Exp $
 
 require 'etc'
 
 class TPOPS
   class Auth
 
-    def Auth::apop?()
+    def Auth.apop?()
       defined? $apop_passwd_file
     end
 
@@ -13,7 +13,7 @@ class TPOPS
       $passwd_lock_dir = '/var/run/tpops' unless defined? $passwd_lock_dir and $passwd_lock_dir
       $maildir = "Maildir" unless defined? $maildir and $maildir
       begin
-	pw = Etc::getpwnam user
+	pw = Etc.getpwnam user
       rescue ArgumentError
 	return
       end
@@ -21,9 +21,9 @@ class TPOPS
       if apop then
         require 'dbm'
 	require 'md5'
-	pw = DBM::open($apop_passwd_file, 0600)[@login]
+	pw = DBM.open($apop_passwd_file, 0600)[@login]
 	return unless pw
-	if pass == MD5::new(apop+pw).hexdigest then
+	if pass == MD5.new(apop+pw).hexdigest then
 	  @authorized = true
 	end
 	return
@@ -52,18 +52,18 @@ class TPOPS
 
     def lock()
       lockfile = "#{$passwd_lock_dir}/#{@uid}"
-      Dir::mkdir $passwd_lock_dir, 0700 unless File::exists? $passwd_lock_dir
-      if File::exists? lockfile then
-	if Time::now - File::stat(lockfile).mtime > $connection_keep_time then
-	  File::unlink lockfile rescue nil
+      Dir.mkdir $passwd_lock_dir, 0700 unless File.exists? $passwd_lock_dir
+      if File.exists? lockfile then
+	if Time.now - File.stat(lockfile).mtime > $connection_keep_time then
+	  File.unlink lockfile rescue nil
 	else
-	  pid, host = File::open(lockfile) do |f| f.gets.split end
+	  pid, host = File.open(lockfile) do |f| f.gets.split end
 	  if pid =~ /^\d+$/ and host == $hostname then
 	    begin
-	      Process::kill 0, pid.to_i
+	      Process.kill 0, pid.to_i
 	      return false
 	    rescue Errno::ESRCH
-	      File::unlink lockfile
+	      File.unlink lockfile
 	    rescue
 	      return false
 	    end
@@ -71,7 +71,7 @@ class TPOPS
 	end
       end
       begin
-	File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
+	File.open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
 	  f.puts "#{$$.to_s} #{$hostname}"
 	end
       rescue
@@ -85,7 +85,7 @@ class TPOPS
 
     def unlock()
       lockfile = "#{$passwd_lock_dir}/#{@uid}"
-      File::unlink lockfile
+      File.unlink lockfile
       @locked = false
     end
 
