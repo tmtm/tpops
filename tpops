@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.63 2004/09/22 16:21:11 tommy Exp $
+# $Id: tpops,v 1.64 2004/10/08 14:56:05 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -11,7 +11,7 @@ require "syslog"
 require "optconfig"
 require "tserver"
 
-$version = "0.6.2"
+$version = "0.6.4"
 
 $options = {
   ["config", "f"]	=> true,

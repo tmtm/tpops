@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.6.4.tar.gz">tpops-0.6.4.tar.gz</a>
       <li><a href="tpops-0.6.3.tar.gz">tpops-0.6.3.tar.gz</a>
       <li><a href="tpops-0.6.2.tar.gz">tpops-0.6.2.tar.gz</a>
       <li><a href="tpops-0.6.1.tar.gz">tpops-0.6.1.tar.gz</a>
@@ -66,9 +67,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.6.3.tar.gz
-# chown -R root:root tpops-0.6.3
-# ln -s tpops-0.6.3 tpops
+# tar xpfvz /tmp/tpops-0.6.4.tar.gz
+# chown -R root:root tpops-0.6.4
+# ln -s tpops-0.6.4 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -168,6 +169,10 @@
 	    <tr>
 	      <td>maildir-lock<td>yes
 	      <td>メールボックスをロックします。ログイン中は同じメールボックスを使用する ID ではログインできません。
+	    <tr>
+	      <td>maildir-uidl-convert<td>no
+	      <td>Maildir/tpops_uidl ファイルがある場合に UIDL を変換します。
+		tpops_uidl ファイルの内容は「ファイル名&lt;TAB&gt;UIDL」の行のリストです。
 	    <tr>
 	      <th colspan=3>auth-type = passwd 時に有効なパラメータ
 	    <tr>
@@ -343,6 +348,12 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.6.4 2004-10-08
+      <dd>
+	<ul>
+	  <li>maildir-uidl-convert オプション追加。
+	</ul>
+
       <dt>0.6.3 2004-09-23
       <dd>
 	<ul>
@@ -548,7 +559,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Thu Sep 23 01:30:18 JST 2004
+Last modified: Fri Oct  8 23:48:26 JST 2004
 <!-- hhmts end -->
     </p>
   </body>
