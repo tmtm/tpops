@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.11 2002/01/25 07:57:42 tommy Exp $
+# $Id: tpops,v 1.12 2002/01/25 08:51:04 tommy Exp $
 
 require 'socket'
 
@@ -16,7 +16,7 @@ end
 class TPOPS
 
   def initialize()
-    if WithInetd then
+    if defined? WithInetd and WithInetd then
       connection(Socket::for_fd $stdin.fileno)
     else
       trap "CHLD", nil		# ignore child process's status
@@ -157,8 +157,25 @@ class TPOPS
     end
     at_exit do
       unlock()
+      write_log
     end
     @status = :TRANSACTION
+    @start_time = Time::now
+  end
+
+  def write_log()
+    if defined? LogFile and LogFile then
+      File::open(LogFile, 'a') do |f|
+	f.puts sock_to_addr(@sock) + ' ' +
+	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
+	  Time::now.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
+	  @user
+      end
+    end
+  end
+
+  def sock_to_addr(s)
+    s.getpeername[4,4].split('').collect{|i| i[0].to_s}.join('.')
   end
 
   def comm_stat(arg)
