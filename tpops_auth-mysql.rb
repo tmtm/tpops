@@ -1,4 +1,4 @@
-# $Id: tpops_auth-mysql.rb,v 1.5 2003/04/19 04:52:00 tommy Exp $
+# $Id: tpops_auth-mysql.rb,v 1.6 2004/03/18 16:14:36 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -28,7 +28,7 @@ class TPOPS
       end
       res = nil
       queries.each do |qu|
-	res = my.query(sprintf(qu, my.quote user))
+	res = my.query(sprintf(qu, my.quote(user)))
 	break if res.num_rows > 0
 	res = nil
       end
