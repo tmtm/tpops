@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.31 2002/11/07 09:03:39 tommy Exp $
+# $Id: tpops,v 1.32 2002/11/07 14:39:12 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -31,15 +31,27 @@ class TPOPS
   def initialize()
     if WithInetd then
       $stderr = File::open(ErrorFile, 'a')
-      connection(Socket::for_fd $stdin.fileno)
+      begin
+	connection(Socket::for_fd $stdin.fileno)
+      rescue
+	$stderr.puts Time::now.inspect
+	$stderr.flush
+	raise
+      end
     else
       trap "CHLD", nil		# ignore child process's status
       sock = TCPServer::new(Port)
       loop do
 	conn = sock.accept
 	fork do
-	  sock.close
-	  connection(conn)
+	  begin
+	    sock.close
+	    connection(conn)
+	  rescue
+	    $stderr.puts Time::now.inspect
+	    $stderr.flush
+	    raise
+	  end
 	end
 	conn.close
       end
@@ -372,5 +384,5 @@ unless getopts(nil, 'domain:') then
   raise 'unknown options'
 end
 $default_domain = $OPT_domain
-TPOPS::new
 
+TPOPS::new

@@ -1,4 +1,4 @@
-# $Id: tpops_auth-passwd.rb,v 1.6 2002/11/07 03:20:11 tommy Exp $
+# $Id: tpops_auth-passwd.rb,v 1.7 2002/11/07 14:39:12 tommy Exp $
 
 require 'etc'
 
@@ -68,9 +68,14 @@ class TPOPS
 	  end
 	end
       end
-      File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
-	f.puts $$.to_s
-      end rescue return false
+      begin
+	File::open(lockfile, File::RDWR|File::CREAT|File::EXCL, 0600) do |f|
+	  f.puts $$.to_s
+	end
+      rescue
+	$stderr.puts "#{lockfile}: #{$!.to_s}"
+	return false
+      end
       true
     end
 

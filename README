@@ -27,9 +27,9 @@ message can be controled by MySQL table.
 
    ex)
 	# cd /usr/local
-	# tar xpvfz /tmp/tpops-0.4.6.tar.gz
-	# chown -R root:root tpops-0.4.6
-	# ln -s tpops-0.4.6 tpops
+	# tar xpvfz /tmp/tpops-0.4.7.tar.gz
+	# chown -R root:root tpops-0.4.7
+	# ln -s tpops-0.4.7 tpops
 
 2. make tpops.conf. The example and default value are in
    tpops.conf.sample.
@@ -126,10 +126,14 @@ message can be controled by MySQL table.
 If set tpops.conf in tpops.conf, log to file when user logout. log
 format is:
 
-	IPaddr login-date login-time logout-date logout-time login-name
+	IPaddr login-date login-time logout-date logout-time login-name login-msgs login-msgsize logout-msgs logout-msgsize
 
 [License]
 
 This program is under Ruby license.
 
-$Id: README,v 1.1 2002/11/07 03:20:11 tommy Exp $
+[Author]
+
+TOMITA Masahiro <tommy@tmtm.org>
+
+$Id: README,v 1.2 2002/11/07 14:39:12 tommy Exp $
