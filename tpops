@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.50 2004/06/08 04:10:52 tommy Exp $
+# $Id: tpops,v 1.51 2004/06/09 15:38:21 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -64,6 +64,33 @@ class TPOPS
   class Error < StandardError
   end
 
+  @@auth_classes = {}
+  @@mailbox_classes = {}
+
+  def self.add_auth_class(name, klass)
+    @@auth_classes[name] = klass
+  end
+
+  def self.auth_class=(name)
+    @@auth_class = name
+  end
+
+  def self.auth_class()
+    @@auth_classes[@@auth_class]
+  end
+
+  def self.add_mailbox_class(name, klass)
+    @@mailbox_classes[name] = klass
+  end
+
+  def self.mailbox_class=(name)
+    @@mailbox_class = name
+  end
+
+  def self.mailbox_class()
+    @@mailbox_classes[@@mailbox_class]
+  end
+
   def start()
     ts = nil
     loop = true
@@ -73,7 +100,7 @@ class TPOPS
       TServer.logging = $conf["debug"] ? (Syslog.opened? ? :syslog : true) : nil
       if $conf["port"] != @port then
         ts.close if ts
-        ts = TServer.new(*($conf["port"].split(/:/)))
+        ts = TServer.new(*($conf["port"].to_s.split(/:/)))
         @port = $conf["port"]
       end
 
@@ -85,11 +112,10 @@ class TPOPS
       end
       unless @signal_setup then
         trap "HUP" do
-          ts.terminate
+          log_notice "tpops daemon reload"
           ts.stop
         end
         trap "TERM" do
-          ts.terminate
           loop = false
           ts.stop
         end
@@ -170,8 +196,12 @@ class TPOPS
       log_err "#{$!}"
       raise
     end
-    require "tpops_auth-"+$conf["auth-type"].downcase
-    require "tpops_mailbox-"+$conf["mailbox-type"].downcase
+
+    TPOPS.auth_class = $conf["auth-type"]
+    TPOPS.mailbox_class = $conf["mailbox-type"]
+
+    TPOPS.auth_class.reset
+
     if $conf["user"] then
       if $conf["user"] =~ /\A\d+\Z/ then
         $uid = $conf["user"].to_i
@@ -188,7 +218,7 @@ class TPOPS
         $gid = Etc.getgrnam($conf["group"]).gid
       end
     end
-    if not $conf["syslog"] or $conf["syslog"] == "" or $conf["syslog"] == "none" then
+    if not $conf["syslog"] or $conf["syslog"] == "none" then
       Syslog.close if Syslog.opened?
     else
       fac = eval "Syslog::LOG_#{$conf["syslog"].upcase}"
@@ -205,7 +235,7 @@ class TPOPS
       @sock = sock
       @status = :AUTHORIZATION
       @user = nil
-      @apopkey = Auth.apop? ? "<#{$$}.#{Time.now.to_i}@#{$conf["hostname"]}>" : ""
+      @apopkey = TPOPS.auth_class.apop? ? "<#{$$}.#{Time.now.to_i}@#{$conf["hostname"]}>" : ""
       @start_time = Time.now
       @peer_addr = sock_to_addr @sock
 
@@ -283,7 +313,7 @@ class TPOPS
 	  end
 	end
       ensure
-	@auth.unlock if @auth and @auth.locked? rescue nil
+        @mailbox.unlock if @mailbox
 	write_log rescue nil
 	@sock.close rescue nil
 	log_info "disconnect from #{@peer_addr}" rescue nil
@@ -336,7 +366,7 @@ class TPOPS
 	return
       end
 
-      @auth = Auth.new @user, arg[0]
+      @auth = TPOPS.auth_class.new @user, arg[0]
       if @auth.authorized? then
 	to_transaction
       else
@@ -347,7 +377,7 @@ class TPOPS
     end
 
     def comm_apop(arg)
-      unless Auth.apop? then
+      unless TPOPS.auth_class.apop? then
 	err "APOP not supported"
 	return
       end
@@ -360,7 +390,7 @@ class TPOPS
 	return
       end
       @user = arg[0]
-      @auth = Auth.new arg[0], arg[1], @apopkey
+      @auth = TPOPS.auth_class.new arg[0], arg[1], @apopkey
       if @auth.authorized? then
 	to_transaction
       else
@@ -371,12 +401,12 @@ class TPOPS
     end  
 
     def to_transaction()
-      if not @auth.lock then
-	log_notice "cannot lock for #{@user}"
-	err "cannot lock for #{@user}"
-	throw :disconnect
+      begin
+        @mailbox = TPOPS.mailbox_class.new @auth.uid, @auth.maildir
+      rescue TPOPS::Error
+        err $!.to_s
+        throw :disconnect
       end
-      @mailbox = Mailbox.new @auth.uid, @auth.maildir
       after_auth_hook(@sock, @auth, @mailbox) if defined? after_auth_hook
       @status = :TRANSACTION
       msgs, size = @mailbox.stat
@@ -587,6 +617,9 @@ EOS
 end
 
 script_dir = File.dirname $0
+Dir.glob("#{script_dir}/plugin/*.rb") do |f|
+  load f
+end
 
 $conf = OptConfig.new
 $conf.options = $options

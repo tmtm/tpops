@@ -1,4 +1,4 @@
-# $Id: auth-passwd.rb,v 1.1 2004/06/09 15:10:23 tommy Exp $
+# $Id: auth-passwd.rb,v 1.2 2004/06/09 15:39:07 tommy Exp $
 
 require 'etc'
 
@@ -9,7 +9,7 @@ $options.update({
 })
 
 class TPOPS
-  class Auth
+  class AuthPasswd
 
     def self.apop?()
       $conf["apop-passwd-file"] and not $conf["apop-passwd-file"].empty?
@@ -101,3 +101,5 @@ class TPOPS
     end
   end
 end
+
+TPOPS.add_auth_class "passwd", TPOPS::AuthPasswd

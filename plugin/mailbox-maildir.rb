@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.1 2004/06/09 15:10:23 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.2 2004/06/09 15:39:07 tommy Exp $
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
@@ -24,7 +24,7 @@ class TPOPS
     end
   end
 
-  class Mailbox
+  class MailboxMaildir
     private
     def exist?(msg)
       if msg <= 0 then return nil end
@@ -86,7 +86,7 @@ class TPOPS
       f2 = "#{f}.#{$$}.#{Time.now.to_i.to_s}"
       begin
         File.rename f, f2
-        ObjectSpace.define_finalizer(self, TPOPS::Mailbox.unlock(f, f2))
+        ObjectSpace.define_finalizer(self, self.class.unlock(f, f2))
         @lock = f
         @lock2 = f2
       rescue Errno::ENOENT
@@ -233,3 +233,5 @@ class TPOPS
     end
   end
 end
+
+TPOPS.add_mailbox_class "maildir",TPOPS::MailboxMaildir

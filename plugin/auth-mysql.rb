@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.1 2004/06/09 15:10:23 tommy Exp $
+# $Id: auth-mysql.rb,v 1.2 2004/06/09 15:39:07 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -12,7 +12,7 @@ $options.update({
 })
 
 class TPOPS
-  class Auth
+  class AuthMysql
 
     @@my = nil
 
@@ -90,3 +90,5 @@ class TPOPS
 
   end
 end
+
+TPOPS.add_auth_class "mysql", TPOPS::AuthMysql
