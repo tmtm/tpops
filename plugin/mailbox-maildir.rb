@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.11 2004/09/22 16:30:03 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.12 2004/10/08 14:50:25 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -8,6 +8,7 @@ $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
   "maildir-extended"		=> [/^(yes|no)$/i, "yes"],
   "maildir-lock"		=> [/^(yes|no)$/i, "yes"],
+  "maildir-uidl-convert"	=> [/^(yes|no)$/i, "no"],
 })
 
 class TPOPS
@@ -89,6 +90,18 @@ class TPOPS
       end
       files.each_index do |i|
         @files[i+1] = files[i]
+      end
+      @uidl_conv = {}
+      if $conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/tpops_uidl" then
+        begin
+          File.open("#{maildir}/tpops_uidl") do |f|
+            f.each do |l|
+              fname, uid = l.chomp.split(/\t/,2)
+              @uidl_conv[fname] = uid
+            end
+          end
+        rescue Errno::ENOENT
+        end
       end
     end
 
@@ -226,7 +239,8 @@ class TPOPS
       ret = []
       @files.keys.sort.each do |m|
         if not @files[m].deleted? then
-          ret << [m, File.basename(@files[m].name).split(/:/)[0]]
+          uid = File.basename(@files[m].name).split(/:/)[0]
+          ret << [m, @uidl_conv[uid] || uid]
         end
       end
       ret
@@ -234,7 +248,8 @@ class TPOPS
 
     def uidl(msg)
       if not exist? msg then return nil end
-      [msg, File.basename(@files[msg].name).split(/:/)[0]]
+      uid = File.basename(@files[msg].name).split(/:/)[0]
+      [msg, @uidl_conv[uid] || uid]
     end
 
     def last()
