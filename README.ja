@@ -28,9 +28,9 @@ TPOPS は POP3 サーバです。RFC 1939 に準拠しています。Ruby で実装されてい
 
    例)
 	# cd /usr/local
-	# tar xpfvz /tmp/tpops-0.5.5.tar.gz
-	# chown -R root:root tpops-0.5.5
-	# ln -s tpops-0.5.5 tpops
+	# tar xpfvz /tmp/tpops-0.5.6.tar.gz
+	# chown -R root:root tpops-0.5.6
+	# ln -s tpops-0.5.6 tpops
 
 2. tpops.conf を作成してください。サンプルが tpops.conf.sample にあり
    ます。
@@ -282,6 +282,10 @@ false」を設定してください。ただし、メッセージサイズを調べるために、メッ
 
 [履歴]
 
+0.5.6	2004-03-23
+	・QUITしないで接続を切られた場合にログに出力される残りのメール
+	  数/サイズの値が異常な場合がある
+
 0.5.5	2004-03-18
 	・tserver 0.1.1 を使用(kill で終了しないことがあるバグに対応)
 	・Ruby 1.8.1 に対応
@@ -402,4 +406,4 @@ false」を設定してください。ただし、メッセージサイズを調べるために、メッ
 
 とみたまさひろ <tommy@tmtm.org>
 
-$Id: README.ja,v 1.38.4.1 2004/03/18 06:49:32 tommy Exp $
+$Id: README.ja,v 1.38.4.2 2004/03/23 13:07:54 tommy Exp $
