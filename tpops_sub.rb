@@ -1,12 +1,7 @@
-# $Id: tpops_sub.rb,v 1.1 2001/05/06 14:48:33 tommy Exp $
+# $Id: tpops_sub.rb,v 1.2 2001/05/06 15:17:52 tommy Exp $
 
 require 'md5'
 require 'mysql'
-
-MySQL_Server = 'localhost'
-MySQL_User = 'root'
-MySQL_Pass = 'fuga'
-MySQL_DB = 'tpops'
 
 class TPOPS
 
