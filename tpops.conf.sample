@@ -1,22 +1,25 @@
-# $Id: tpops.conf.sample,v 1.1 2002/02/06 14:39:46 tommy Exp $
+# $Id: tpops.conf.sample,v 1.2 2002/02/06 17:55:10 tommy Exp $
 
 Port = 110
 Hostname = `uname -n`.chomp
-ConnectionKeepTime = 60*60	# 1 hour
-CommandTimeout = 5*60		# 5 minutes
-Mailbox = "MySQL"		# "MySQL" or "Maildir"
+ConnectionKeepTime = 60*60		# 1 hour
+CommandTimeout = 5*60			# 5 minutes
 MaildirCRLF = false
-WithInetd = false
+WithInetd = false			# set true if using with inetd
 #LogFile = '/var/log/tpops.log'
-ErrorFile = '/var/log/tpops.err'	# used when WithInetd
+ErrorFile = '/var/log/tpops.err'	# used when WithInetd is true
 
-MySQL_Server = 'localhost'
-MySQL_User = 'user'
-MySQL_Pass = 'passwd'
-MySQL_DB = 'tpops'
+#AuthType = 'Passwd'		# 'Passwd' or 'MySQL'
+#MailboxType = 'Maildir'	# 'Maildir' or 'MySQL'
 
-AuthQuery = "select uid, passwd from user where login='%s'"
-AuthQuery_Maildir = "select uid, passwd, maildir from user where login='%s'"
+# if you use MySQL, set these parameters
+#
+#MySQL_Server = 'localhost'	# server that mysqld running
+#MySQL_User = 'user'		# username to connect mysqld
+#MySQL_Pass = 'passwd'		# password to connect mysqld
+#MySQL_DB = 'tpops'		# database used by TPOPS
+#
+#MySQLAuthQuery = "select login,passwd,uid,maildir from user where login='%s'"
 
 #------------------------
 # If you want POP_before_SMTP feature, then enable following lines.
@@ -24,9 +27,9 @@ AuthQuery_Maildir = "select uid, passwd, maildir from user where login='%s'"
 # And make your smtp server to check tpops.pbs MySQL table.
 # 
 #class TPOPS
-#  def after_auth_hook()
+#  def after_auth_hook(sock, auth, mailbox)
 #    m = Mysql::new(MySQL_Server, MySQL_User, MySQL_Pass, MySQL_DB)
-#    m.query("replace into pbs (ip) values ('#{m.quote sock_to_addr @sock}')")
+#    m.query("replace into pbs (ip) values ('#{m.quote sock_to_addr sock}')")
 #    m.close
 #  end
 #end

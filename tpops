@@ -1,17 +1,18 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.15 2002/02/02 16:47:43 tommy Exp $
+# $Id: tpops,v 1.16 2002/02/06 17:55:10 tommy Exp $
 
 require 'socket'
 
-ScriptDir = File::dirname($0) + '/'
-load ScriptDir+'tpops.conf'
+$LOAD_PATH.unshift File::dirname($0)
+
+load 'tpops.conf'
 Mailbox = 'MySQL' unless defined? Mailbox
-case Mailbox
-when 'Maildir'
-  load ScriptDir+'tpops_maildir.rb'
-else
-  load ScriptDir+'tpops_sub.rb'
-end
+
+AuthType = 'Passwd' unless defined? AuthType
+require 'tpops_auth-'+AuthType.downcase
+
+MailboxType = 'Maildir' unless defined? MailboxType
+require 'tpops_mailbox-'+MailboxType.downcase
 
 class TPOPS
 
@@ -37,7 +38,7 @@ class TPOPS
     @sock = sock
     @status = :AUTHORIZATION
     @user = nil
-    @apopkey = "<#{$$}.#{Time::now.to_i}@#{Hostname}>"
+    @apopkey = Auth::apop? ? "<#{$$}.#{Time::now.to_i}@#{Hostname}>" : ''
 
     Thread::new do sleep ConnectionKeepTime; exit end
 
@@ -118,9 +119,11 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    if auth(@user, arg[0]) then
-      to_transaction
-      msgs, size = stat
+
+    auth = Auth::new @user, arg[0]
+    if auth.authorized? then
+      to_transaction auth
+      msgs, size = @mailbox.stat
       ok "#{@user} has #{msgs} messages (#{size} octets)"
     else
       sleep 5
@@ -130,6 +133,10 @@ class TPOPS
   end
 
   def comm_apop(arg)
+    unless Auth::apop? then
+      err 'APOP not supported'
+      return
+    end
     if @user then
       err 'invalid command'
       return
@@ -138,10 +145,11 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    if apop_auth(arg[0], arg[1]) then
+    auth = Auth::new arg[0], arg[1], @apopkey
+    if auth.authorized? then
       @user = arg[0]
-      to_transaction
-      msgs, size = stat
+      to_transaction auth
+      msgs, size = @mailbox.stat
       ok "#{@user} has #{msgs} messages (#{size} octets)"
     else
       sleep 5
@@ -150,17 +158,18 @@ class TPOPS
     end
   end  
 
-  def to_transaction()
-    reset_msgno
-    if not lock then
+  def to_transaction(auth)
+    if not auth.lock then
       err "cannot lock for #{@user}"
       exit
     end
+    @mailbox = Mailbox::new auth.uid, auth.maildir
+    @mailbox.reset_msgno
     at_exit do
-      unlock()
+      auth.unlock()
       write_log
     end
-    after_auth_hook() if defined? after_auth_hook
+    after_auth_hook(@sock, auth, @mailbox) if defined? after_auth_hook
     @status = :TRANSACTION
     @start_time = Time::now
   end
@@ -185,22 +194,22 @@ class TPOPS
       err 'too many arguments'
       return
     end
-    n, m = stat
+    n, m = @mailbox.stat
     ok "#{n} #{m}"
   end
 
   def comm_list(arg)
     if arg.size == 0 then
-      n, m = stat
+      n, m = @mailbox.stat
       ok "#{n} messages (#{m} octets)"
       @sock.sync = false
-      list_all.each do |n, m|
+      @mailbox.list_all.each do |n, m|
 	@sock.write "#{n} #{m}\r\n"
       end
       @sock.sync = true
       @sock.write ".\r\n"
     elsif arg.size == 1 then
-      n, m = list(arg[0].to_i)
+      n, m = @mailbox.list(arg[0].to_i)
       if n then
 	ok "#{n} #{m}"
       else
@@ -216,7 +225,7 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    msg = retr(arg[0].to_i)
+    msg = @mailbox.retr(arg[0].to_i)
     if not msg then
       err 'no such message'
       return
@@ -239,7 +248,7 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    if dele(arg[0].to_i) then
+    if @mailbox.dele(arg[0].to_i) then
       ok 'message deleted'
     else
       err 'no such message'
@@ -259,7 +268,7 @@ class TPOPS
       err 'too many arguments'
       return
     end
-    rset
+    @mailbox.rset
     ok
   end
 
@@ -268,7 +277,7 @@ class TPOPS
       err 'too few/many arguments'
       return
     end
-    msg = top arg[0].to_i, arg[1].to_i
+    msg = @mailbox.top arg[0].to_i, arg[1].to_i
     if not msg then
       err 'no such message'
       return
@@ -290,13 +299,13 @@ class TPOPS
     if arg.size == 0 then
       ok
       @sock.sync = false
-      uidl_all.each do |m, id|
+      @mailbox.uidl_all.each do |m, id|
 	@sock.write "#{m} #{id}\r\n"
       end
       @sock.sync = true
       @sock.write ".\r\n"
     elsif arg.size == 1 then
-      m, id = uidl(arg[0].to_i)
+      m, id = @mailbox.uidl(arg[0].to_i)
       if m then
 	ok "#{m} #{id}"
       else
@@ -312,7 +321,7 @@ class TPOPS
       err 'too many arguments'
       return
     end
-    commit
+    @mailbox.commit
     ok 'server signing off' rescue true
     exit
   end
