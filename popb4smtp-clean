@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: popb4smtp-clean,v 1.2 2002/02/02 16:47:43 tommy Exp $
+# $Id: popb4smtp-clean,v 1.3 2002/02/24 18:15:08 tommy Exp $
 
 require 'mysql'
 

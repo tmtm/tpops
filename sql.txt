@@ -1,4 +1,4 @@
-# $Id: sql.txt,v 1.4 2002/02/01 02:52:49 tommy Exp $
+# $Id: sql.txt,v 1.5 2002/02/24 18:15:08 tommy Exp $
 
 create table user (
     uid int not null auto_increment,
