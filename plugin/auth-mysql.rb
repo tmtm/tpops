@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.2 2004/06/09 15:39:07 tommy Exp $
+# $Id: auth-mysql.rb,v 1.3 2004/06/10 02:48:43 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -40,53 +40,15 @@ class TPOPS
 	break if res.num_rows > 0
 	res = nil
       end
-      return unless res
+      raise TPOPS::Error, "authentication failed" unless res
       login, pw, uid, maildir = res.fetch_row
-      if not apop then
-	return unless pass == pw
-      else
-	return unless pass == MD5.new(apop+pw).hexdigest
+      if apop and pass != MD5.new(apop+pw).hexdigest or not apop and pass != pw then
+        raise TPOPS::Error, "authentication failed"
       end
       @login, @uid, @maildir = login, uid, maildir
-      @authorized = true
-    end
-
-    def authorized?()
-      @authorized
-    end
-
-    def locked?()
-      @locked
     end
 
     attr_reader :login, :uid, :maildir
-
-    def lock()
-      my.query("delete from locks where unix_timestamp(now())-unix_timestamp(timestamp)>#{$conf["connection-keep-time"]}")
-      pid, host = my.query("select pid,host from locks where uid='#{my.quote @uid}'").fetch_row
-      if pid and host == $conf["hostname"] then
-	begin
-	  Process.kill 0, pid.to_i
-	  return false
-	rescue Errno::ESRCH
-	  my.query("delete from locks where uid='#{my.quote @uid}'")
-	rescue
-	  return false
-	end
-      end
-
-      my.query("insert ignore into locks (uid,pid,host) values ('#{my.quote @uid}','#{$$}','#{my.quote $conf["hostname"]}')")
-      if my.affected_rows == 0 then
-	return false
-      end
-      @locked = true
-      true
-    end
-
-    def unlock()
-      my.query("delete from locks where uid='#{my.quote @uid}'")
-      @locked = false
-    end
 
   end
 end

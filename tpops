@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.51 2004/06/09 15:38:21 tommy Exp $
+# $Id: tpops,v 1.52 2004/06/10 02:48:26 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -129,8 +129,8 @@ class TPOPS
 
       if $conf["error-log"] then
         File.open($conf["error-log"], "a") do |f|
-          $stderr.reopen f
-          $stderr.sync = true
+          STDERR.reopen f
+          STDERR.sync = true
         end
       end
       if not $conf["fg"] and not $already_forked then
@@ -160,8 +160,8 @@ class TPOPS
           exit 1
         rescue
           log_err "#{$@[0]}: #{$!}"
-          $stderr.puts Time.now.inspect
-          $stderr.flush
+          STDERR.puts Time.now.inspect
+          STDERR.flush
           raise
         end
       end
@@ -171,19 +171,19 @@ class TPOPS
 
   def start_by_inetd()
     File.open($conf["error-log"] || "/dev/null", "a") do |f|
-      $stderr.reopen f
-      $stderr.sync
+      STDERR.reopen f
+      STDERR.sync
     end
     begin
       Process.uid = $uid if $uid
       Process.euid = $uid if $uid
       Process.gid = $gid if $gid
-      Conn.new(Socket.for_fd($stdin.fileno))
+      Conn.new(Socket.for_fd(STDIN.fileno))
     rescue TPOPS::Error
       log_err "#{$!}"
     rescue
       log_err "#{$@[0]}: #{$!}"
-      $stderr.puts Time.now.inspect
+      STDERR.puts Time.now.inspect
       raise
     end
     exit
@@ -366,10 +366,10 @@ class TPOPS
 	return
       end
 
-      @auth = TPOPS.auth_class.new @user, arg[0]
-      if @auth.authorized? then
+      begin
+        @auth = TPOPS.auth_class.new @user, arg[0]
 	to_transaction
-      else
+      rescue TPOPS::Error
 	log_notice "authentication failed: #{@user}"
 	err "authentication failed"
 	throw :disconnect
@@ -390,10 +390,11 @@ class TPOPS
 	return
       end
       @user = arg[0]
-      @auth = TPOPS.auth_class.new arg[0], arg[1], @apopkey
-      if @auth.authorized? then
+
+      begin
+        @auth = TPOPS.auth_class.new arg[0], arg[1], @apopkey
 	to_transaction
-      else
+      rescue TPOPS::Error
 	log_notice "authentication failed: #{@user}"
 	err "authentication failed"
 	throw :disconnect
@@ -588,7 +589,7 @@ class TPOPS
 end
 
 def usage()
-  $stderr.puts <<EOS
+  STDERR.puts <<EOS
 Usage: tpops [options]
 options:
   --access-log=filename
@@ -636,7 +637,7 @@ begin
     usage
   end
 rescue OptConfig::Error
-  $stderr.puts $!
+  STDERR.puts $!
   usage
   exit 1
 end
