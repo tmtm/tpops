@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.3 2004/06/10 02:48:43 tommy Exp $
+# $Id: auth-mysql.rb,v 1.4 2004/06/10 11:20:22 tommy Exp $
 
 require 'mysql'
 require 'md5'
@@ -8,7 +8,7 @@ $options.update({
   "mysql-user"		=> true,
   "mysql-passwd"	=> true,
   "mysql-db"		=> true,
-  "mysql-auth-query"	=> [true, "select login,passwd,uid,maildir from user where login=\"%s\""],
+  "mysql-auth-query"	=> [true, "select login,passwd,maildir from user where login=\"%s\""],
 })
 
 class TPOPS
@@ -41,14 +41,14 @@ class TPOPS
 	res = nil
       end
       raise TPOPS::Error, "authentication failed" unless res
-      login, pw, uid, maildir = res.fetch_row
+      login, pw, maildir = res.fetch_row
       if apop and pass != MD5.new(apop+pw).hexdigest or not apop and pass != pw then
         raise TPOPS::Error, "authentication failed"
       end
-      @login, @uid, @maildir = login, uid, maildir
+      @login, @maildir = login, maildir
     end
 
-    attr_reader :login, :uid, :maildir
+    attr_reader :login, :maildir
 
   end
 end

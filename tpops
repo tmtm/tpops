@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.52 2004/06/10 02:48:26 tommy Exp $
+# $Id: tpops,v 1.53 2004/06/10 11:20:21 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -403,7 +403,7 @@ class TPOPS
 
     def to_transaction()
       begin
-        @mailbox = TPOPS.mailbox_class.new @auth.uid, @auth.maildir
+        @mailbox = TPOPS.mailbox_class.new @auth.maildir
       rescue TPOPS::Error
         err $!.to_s
         throw :disconnect

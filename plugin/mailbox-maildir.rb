@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.2 2004/06/09 15:39:07 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.3 2004/06/10 11:20:22 tommy Exp $
 
 $options.update({
   "maildir-use-filesize"	=> [/^(yes|no)$/i, "yes"],
@@ -39,7 +39,7 @@ class TPOPS
     end
 
     public
-    def initialize(uid, maildir)
+    def initialize(maildir)
       lock(maildir)
       files = []
       [maildir+'/cur', maildir+'/new'].each do |path|

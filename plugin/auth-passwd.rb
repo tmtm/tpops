@@ -1,4 +1,4 @@
-# $Id: auth-passwd.rb,v 1.3 2004/06/10 02:48:43 tommy Exp $
+# $Id: auth-passwd.rb,v 1.4 2004/06/10 11:20:22 tommy Exp $
 
 require 'etc'
 
@@ -23,7 +23,7 @@ class TPOPS
       rescue ArgumentError
         raise TPOPS::Error, "authentication failed"
       end
-      @login, @uid, @maildir = pw.name, pw.uid, pw.dir+"/"+$conf["maildir"]+"/"
+      @login, @maildir = pw.name, pw.dir+"/"+$conf["maildir"]+"/"
       if apop then
         require 'dbm'
 	require 'md5'
@@ -56,7 +56,7 @@ class TPOPS
       end
     end
 
-    attr_reader :login, :uid, :maildir
+    attr_reader :login, :maildir
 
   end
 end
