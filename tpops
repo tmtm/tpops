@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.27 2002/08/03 15:01:20 tommy Exp $
+# $Id: tpops,v 1.28 2002/08/15 16:21:39 tommy Exp $
 
 require 'getopts'
 require 'socket'
@@ -51,6 +51,22 @@ class TPOPS
     @status = :AUTHORIZATION
     @user = nil
     @apopkey = Auth::apop? ? "<#{$$}.#{Time::now.to_i}@#{Hostname}>" : ''
+    @start_time = Time::now
+    @peer_addr = sock_to_addr @sock
+
+    at_exit do
+      write_log
+    end
+
+    def @sock.gets_limit()
+      ret = ''
+      while chr = getc do
+	ret << chr
+	break if chr == ?\n
+	raise 'line exceed 1024 bytes' if ret.length >= 1024
+      end
+      ret
+    end
 
     login_time = Time::now.to_i
 
@@ -63,7 +79,7 @@ class TPOPS
       if Time::now.to_i - login_time > ConnectionKeepTime then
 	exit
       end
-      r = @sock.gets
+      r = @sock.gets_limit
       if not r then break end
       r = r.chomp.sub(/\r$/, '')
       comm = r.split
@@ -183,24 +199,22 @@ class TPOPS
       err "cannot lock for #{@user}"
       exit
     end
-    @peer_addr = sock_to_addr @sock
     at_exit do
       auth.unlock()
-      write_log
     end
     @mailbox = Mailbox::new auth.uid, auth.maildir
     after_auth_hook(@sock, auth, @mailbox) if defined? after_auth_hook
     @status = :TRANSACTION
-    @start_time = Time::now
   end
 
   def write_log()
     if LogFile then
+      u = @user == nil ? '()' : @status == :TRANSACTION ? @user : "(#{@user})"
       File::open(LogFile, 'a') do |f|
 	f.syswrite @peer_addr + ' ' +
 	  @start_time.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
 	  Time::now.strftime('%Y/%m/%d %H:%M:%S') + ' ' +
-	  @user + "\n"
+	  u + "\n"
       end
     end
   end

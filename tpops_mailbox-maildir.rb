@@ -1,4 +1,4 @@
-# $Id: tpops_mailbox-maildir.rb,v 1.7 2002/07/02 17:06:13 tommy Exp $
+# $Id: tpops_mailbox-maildir.rb,v 1.8 2002/08/15 16:21:39 tommy Exp $
 
 class TPOPS
 
@@ -32,7 +32,11 @@ class TPOPS
     def initialize(uid, maildir)
       files = []
       [maildir+'cur', maildir+'new'].each do |path|
-	next unless File::directory? path
+	begin
+	  File::stat(path)
+	rescue Errno::ENOENT
+	  next
+	end
 	Dir::foreach(path) do |f|
 	  if f =~ /^(\d+)\./ then
 	    mtime = $1.to_i
