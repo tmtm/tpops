@@ -1,4 +1,4 @@
-# $Id: tserver.rb,v 1.14 2003/04/17 08:49:51 tommy Exp $
+# $Id: tserver.rb,v 1.15 2003/04/26 15:21:31 tommy Exp $
 
 require 'socket'
 require 'fcntl'
@@ -168,6 +168,8 @@ class TServer
 	rescue Errno::EAGAIN
 	  next
 	end
+	m = s.fcntl(Fcntl::F_GETFL, 0)
+	s.fcntl(Fcntl::F_SETFL, ~Fcntl::O_NONBLOCK&m)
 	@to_parent.puts "#{$$} connect"
 	block.call(s)
 	s.close unless s.closed?

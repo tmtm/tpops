@@ -221,6 +221,9 @@ This program is under Ruby license.
 
 [History]
 
+0.5.3a	2003-04-27
+	* it use tserver 0.0.7.
+
 0.5.3	2003-04-17
 	* it do multiple queries if $mysql_auth_query is Array.
 	* it use tserver 0.0.6.
@@ -255,4 +258,4 @@ This program is under Ruby license.
 
 TOMITA Masahiro <tommy@tmtm.org>
 
-$Id: README,v 1.9 2003/04/19 04:51:59 tommy Exp $
+$Id: README,v 1.10 2003/04/26 15:58:48 tommy Exp $
