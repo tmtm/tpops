@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.53 2004/06/10 11:20:21 tommy Exp $
+# $Id: tpops,v 1.54 2004/06/10 11:23:34 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -321,7 +321,7 @@ class TPOPS
     end
 
     def err(arg=nil)
-      sleep $conf["error-interval"]
+      sleep $conf["error-interval"].to_i
       @sock.write(arg ? "-ERR #{arg}\r\n" : "-ERR\r\n")
       log_debug "> -ERR #{arg}"
     end
