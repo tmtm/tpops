@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.7.tar.gz">tpops-0.7.tar.gz</a>
       <li><a href="tpops-0.6.5.tar.gz">tpops-0.6.5.tar.gz</a>
       <li><a href="tpops-0.6.4.tar.gz">tpops-0.6.4.tar.gz</a>
       <li><a href="tpops-0.6.3.tar.gz">tpops-0.6.3.tar.gz</a>
@@ -59,9 +60,9 @@
 
     <h2>必要なもの</h2>
     <ul>
-      <li><a href="http://www.ruby-lang.org">Ruby 1.8.1</a>
-      <li><a href="http://www.mysql.com">MySQL 3.23.x or 4.0.x</a> (MySQL 認証を使用する場合)
-      <li><a href="http://tmtm.org/ja/ruby/mysql/">Ruby/MySQL 0.2.4</a> (MySQL 認証を使用する場合)
+      <li><a href="http://www.ruby-lang.org">Ruby 1.8.2</a>
+      <li><a href="http://www.mysql.com">MySQL 4.1.x</a> (MySQL 認証を使用する場合)
+      <li><a href="http://tmtm.org/ja/mysql/ruby/">MySQL/Ruby 2.6.1</a> (MySQL 認証を使用する場合)
     </ul>
 
     <h2>インストール</h2>
@@ -70,9 +71,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.6.5.tar.gz
-# chown -R root:root tpops-0.6.5
-# ln -s tpops-0.6.5 tpops
+# tar xpfvz /tmp/tpops-0.7.tar.gz
+# chown -R root:root tpops-0.7
+# ln -s tpops-0.7 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -143,6 +144,10 @@
 	      <td>
 		ユーザ認証方式。passwd, mysql のいずれかを指定します。
 	    <tr>
+	      <td>parallel-type<td>prefork
+	      <td>
+		並列方式。prefork, fork, thread のいずれかを指定します。
+	    <tr>
 	      <td>domain<td>
 	      <td>ログイン名に「@」「%」「+」のいずれも含まれてない場合に、「@domainname」をログイン名に追加して認証を試みます。
 	    <tr>
@@ -151,15 +156,18 @@
 	    <tr>
 	      <td>min-servers<td>5
 	      <td>最小子プロセス数。子プロセス数がこの値以下になると、この値になるまで子プロセスが起動されます。
+		parallel-type=prefork 時のみ有効。
 	    <tr>
 	      <td>max-servers<td>50
 	      <td>最大子プロセス数。子プロセス数はこの値以上にはなりません。
 	    <tr>
 	      <td>max-use<td>100
 	      <td>子プロセスが処理する接続数の最大値。この値を超えると子プロセスは終了します。
+		parallel-type=prefork 時のみ有効。
 	    <tr>
 	      <td>max-idle<td>100
 	      <td>最大接続待ち時間。接続終了後、この時間内に新たな接続がないと子プロセスは終了します。
+		parallel-type=prefork 時のみ有効。
 	    <tr>
 	      <td>maildir-use-filesize<td>yes
 	      <td>Maildir 形式で保存されているメールファイルのサイズを、メールのサイズとして扱います。
@@ -584,7 +592,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Mon Jul  4 01:04:18 JST 2005
+Last modified: Wed Jul  6 22:40:01 JST 2005
 <!-- hhmts end -->
     </p>
   </body>

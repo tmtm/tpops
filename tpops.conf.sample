@@ -1,4 +1,4 @@
-# $Id: tpops.conf.sample,v 1.12 2005/07/06 13:22:09 tommy Exp $
+# $Id: tpops.conf.sample,v 1.13 2005/07/06 15:46:08 tommy Exp $
 
 # このファイルに記述できるパラメータは、コマンドライン上で 
 # --parameter=value としても記述できます。コマンドラインでの指定が優先
@@ -74,6 +74,10 @@
 # ユーザ認証方式。passwd, mysql のいずれかを指定します。
 # default: passwd
 
+# parallel-type = 並列方式
+# 並列方式。prefork, fork, thread のいずれかを指定します。
+# default: prefork
+
 # domain = ドメイン名
 # ログイン名に「@」「%」「+」のいずれも含まれてない場合に、
 # 「@domainname」をログイン名に追加して認証を試みます。
@@ -87,6 +91,7 @@
 # min-servers = 数
 # 最小子プロセス数。子プロセス数がこの値以下になると、この値になるまで
 # 子プロセスが起動されます。
+# parallel-type=prefork 時のみ有効。
 # default: 5
 
 # max-servers = 数
@@ -96,11 +101,13 @@
 # max-use = 数
 # 子プロセスが処理する接続数の最大値。この値を超えると子プロセスは終了
 # します。
+# parallel-type=prefork 時のみ有効。
 # default: 100
 
 # max-idle = 数
 # 最大接続待ち時間。接続終了後、この時間内に新たな接続がないと子プロセ
 # スは終了します。
+# parallel-type=prefork 時のみ有効。
 # default: 100
 
 # maildir-use-filesize = yes/no
@@ -157,3 +164,4 @@
 # ログイン名,パスワード,Maildir を取り出すためのクエリ文字列。「%s」は
 # クライアントから渡されたログイン名に置き換えられます。
 # default: select login,passwd,maildir from user where login="%s"
+

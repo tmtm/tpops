@@ -1,4 +1,4 @@
-# $Id: tpops.rb,v 1.1 2005/07/06 13:22:09 tommy Exp $
+# $Id: tpops.rb,v 1.2 2005/07/06 15:46:08 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -15,6 +15,27 @@ class TPOPS
   @mailbox_classes = {}
   @parallel_classes = {}
   @conf = nil
+
+  @command = {
+    :AUTHORIZATION => {
+      "QUIT" => :comm_auth_quit,
+      "USER" => :comm_user,
+      "PASS" => :comm_pass,
+      "APOP" => :comm_apop,
+    },
+    :TRANSACTION => {
+      "STAT" => :comm_stat,
+      "LIST" => :comm_list,
+      "RETR" => :comm_retr,
+      "DELE" => :comm_dele,
+      "NOOP" => :comm_noop,
+      "RSET" => :comm_rset,
+      "TOP"  => :comm_top,
+      "UIDL" => :comm_uidl,
+      "LAST" => :comm_last,
+      "QUIT" => :comm_quit,
+    },
+  }
 
   def self.conf()
     @conf
@@ -76,6 +97,14 @@ class TPOPS
     @parallel_classes[@parallel_class]
   end
 
+  def self.command()
+    @command
+  end
+
+  def self.command=(comm)
+    @command = comm
+  end
+
   def start()
     pl = nil
     port = nil
@@ -83,7 +112,6 @@ class TPOPS
     already_forked = false
     pid_file = nil
     parallel_class = TPOPS.parallel_class
-    @mailbox_class = TPOPS.mailbox_class
     loop = true
     while loop do
       load_config
@@ -268,29 +296,19 @@ class TPOPS::Conn
           Log.debug "< #{r}"
           comm, arg = r.split(/ /, 2)
           next unless comm
-          args = arg ? arg.split(/ /) : []
+          args = arg ? arg.split(/ /, -1) : []
           case @status
           when :AUTHORIZATION
-            case comm.upcase
-            when "QUIT" then comm_auth_quit args
-            when "USER" then comm_user args
-            when "PASS" then comm_pass [arg]
-            when "APOP" then comm_apop args
+            m = TPOPS.command[:AUTHORIZATION][comm.upcase]
+            if m then
+              self.method(m).call(args)
             else
               err "invalid command"
             end
           when :TRANSACTION
-            case comm.upcase
-            when "STAT" then comm_stat args
-            when "LIST" then comm_list args
-            when "RETR" then comm_retr args
-            when "DELE" then comm_dele args
-            when "NOOP" then comm_noop args
-            when "RSET" then comm_rset args
-            when "TOP"  then comm_top args
-            when "UIDL" then comm_uidl args
-            when "LAST" then comm_last args
-            when "QUIT" then comm_quit args
+            m = TPOPS.command[:TRANSACTION][comm.upcase]
+            if m then
+              self.method(m).call(args)
             else
               err "invalid command"
             end
@@ -352,13 +370,14 @@ class TPOPS::Conn
       err "invalid command"
       return
     end
-    if arg.size != 1 then
+    pass = arg.join(" ")
+    if pass.empty? then
       err "too few/many arguments"
       return
     end
 
     begin
-      @auth = TPOPS.auth_class.new @user, arg[0]
+      @auth = TPOPS.auth_class.new @user, pass
       to_transaction
     rescue TPOPS::Error
       Log.notice "authentication failed: #{@user}"
@@ -394,7 +413,7 @@ class TPOPS::Conn
 
   def to_transaction()
     begin
-      @mailbox = @mailbox_class.new @auth.maildir
+      @mailbox = TPOPS.mailbox_class.new @auth.maildir
     rescue TPOPS::Error
       Log.err "#{$!} for #{@user}"
       err $!.to_s
