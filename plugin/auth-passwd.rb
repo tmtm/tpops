@@ -1,4 +1,4 @@
-# $Id: auth-passwd.rb,v 1.4 2004/06/10 11:20:22 tommy Exp $
+# $Id: auth-passwd.rb,v 1.5 2005/07/06 13:22:09 tommy Exp $
 
 require 'etc'
 
@@ -11,7 +11,7 @@ class TPOPS
   class AuthPasswd
 
     def self.apop?()
-      $conf["apop-passwd-file"] and not $conf["apop-passwd-file"].empty?
+      TPOPS.conf["apop-passwd-file"] and not TPOPS.conf["apop-passwd-file"].empty?
     end
 
     def self.reset()
@@ -23,13 +23,13 @@ class TPOPS
       rescue ArgumentError
         raise TPOPS::Error, "authentication failed"
       end
-      @login, @maildir = pw.name, pw.dir+"/"+$conf["maildir"]+"/"
+      @login, @maildir = pw.name, pw.dir+"/"+TPOPS.conf["maildir"]+"/"
       if apop then
         require 'dbm'
 	require 'md5'
-        dbm = DBM.open($conf["apop-passwd-file"], nil)
+        dbm = DBM.open(TPOPS.conf["apop-passwd-file"], nil)
         if dbm == nil then
-          log_warn("DBM: #{$conf["apop-passwd-file"]}: open failed")
+          log_warn("DBM: #{TPOPS.conf["apop-passwd-file"]}: open failed")
           raise TPOPS::Error, "authentication failed"
         end
 	pw = dbm[@login]

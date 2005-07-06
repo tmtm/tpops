@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.13 2004/10/26 05:22:24 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.14 2005/07/06 13:22:09 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -31,6 +31,8 @@ class TPOPS
       begin
         File.unlink @name
         @deleted = :real_delete
+      rescue Errno::ENOENT
+        # do nothing
       rescue
         log_err "delete failed: #{@name}: #{$!}"
       end
@@ -56,9 +58,9 @@ class TPOPS
         if f =~ /^(\d+)\./ then
           mtime = $1.to_i
           p = "#{dir}/#{f}"
-          if $conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
+          if TPOPS.conf["maildir-extended"] == "yes" and f =~ /,S=(\d+)/ then
             size = $1.to_i
-          elsif $conf["maildir-use-filesize"] == "yes" then
+          elsif TPOPS.conf["maildir-use-filesize"] == "yes" then
             s = File.stat(p)
             size = s.size
           else
@@ -78,7 +80,7 @@ class TPOPS
     def initialize(maildir)
       @files = {}
       return unless File.exist? maildir
-      lock(maildir)
+      @lock = Lock.new("#{maildir}/.tpops_lock", TPOPS.conf["connection-keep-time"].to_i) if TPOPS.conf["maildir-lock"] == "yes"
       files = read_maildir("#{maildir}/cur", false)
       files.concat read_maildir("#{maildir}/new", true)
       files.sort! do |a, b|
@@ -92,9 +94,9 @@ class TPOPS
         @files[i+1] = files[i]
       end
       @uidl_conv = {}
-      if $conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/tpops_uidl" then
+      if TPOPS.conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/.tpops_uidl" then
         begin
-          File.open("#{maildir}/tpops_uidl") do |f|
+          File.open("#{maildir}/.tpops_uidl") do |f|
             f.each do |l|
               fname, uid = l.chomp.split(/\t/,2)
               @uidl_conv[fname] = uid
@@ -105,45 +107,8 @@ class TPOPS
       end
     end
 
-    def self.unlock(f, f2)
-      proc do
-        File.rename f2, f rescue nil
-      end
-    end
-
-    def lock(maildir)
-      return if $conf["maildir-lock"] == "no"
-      f = "#{maildir}/tpops_lock"
-      f2 = "#{f}.#{$$}.#{Time.now.to_i.to_s}"
-      begin
-        File.rename f, f2
-        ObjectSpace.define_finalizer(self, self.class.unlock(f, f2))
-        @lock = f
-        @lock2 = f2
-      rescue Errno::ENOENT
-        ff = Dir.glob(f+".*")
-        if ff.empty? then
-          begin
-            File.open(f, File::WRONLY|File::CREAT|File::EXCL, 0666).close
-          rescue Errno::EEXIST
-          end
-          retry
-        end
-        Dir.glob(f+".*") do |i|
-          if i.split(/\./)[-1].to_i < Time.now.to_i-$conf["connection-keep-time"].to_i then
-            log_notice "#{i}: lock is released"
-            File.rename i, f rescue nil
-            retry
-          end
-        end
-        raise TPOPS::Error, "cannot lock"
-      end
-    end
-
     def unlock()
-      return if $conf["maildir-lock"] == "no"
-      File.rename @lock2, @lock rescue nil
-      ObjectSpace.undefine_finalizer(self)
+      @lock.unlock if @lock
     end
 
     def stat()
@@ -262,18 +227,22 @@ class TPOPS
 
     def commit()
       @files.values.each do |f|
-        if f.deleted? then
-          f.real_delete
-        elsif f.in_new then
-          if f.seen then
-            a = f.name.split(/\/+/)
-            a[-2] = "cur" if a[-2] == "new"
-            dest = a.join("/")+":2,S"
-            File.rename(f.name, dest)
+        begin
+          if f.deleted? then
+            f.real_delete
+          elsif f.in_new then
+            if f.seen then
+              a = f.name.split(/\/+/)
+              a[-2] = "cur" if a[-2] == "new"
+              dest = a.join("/")+":2,S"
+              File.rename(f.name, dest)
+            end
+          elsif f.seen and not f.info.include? "S" then
+            f.info = (f.info + "S").split(//).sort.join
+            File.rename(f.name, f.name.split(/:/)[0]+":2,"+f.info)
           end
-        elsif f.seen and not f.info.include? "S" then
-          f.info = (f.info + "S").split(//).sort.join
-          File.rename(f.name, f.name.split(/:/)[0]+":2,"+f.info)
+        rescue Errno::ENOENT
+          # do nothing
         end
       end
     end
@@ -290,6 +259,49 @@ class TPOPS
       [cnt, size]
     end
   end
+
+  class Lock
+    def initialize(filename, expire)
+      purge_old_lockfile(filename, expire)
+      files = Dir.glob("#{filename}\0#{filename}.*")
+      if files.empty? then
+        begin
+          File.open(filename, File::WRONLY|File::CREAT|File::EXCL, 0666).close
+        rescue Errno::EEXIST
+          raise TPOPS::Error, "cannot lock"
+        end
+        files = Dir.glob(filename+".*")
+        unless files.empty? then
+          File.unlink filename rescue nil
+        end
+      end
+      newname = filename+".#{Time.now.to_i}.#{$$}"
+      begin
+        File.rename(filename, newname)
+      rescue Errno::ENOENT
+        raise TPOPS::Error, "cannot lock"
+      end
+      @filename = filename
+      @newname = newname
+    end
+
+    def unlock()
+      File.rename(@newname, @filename) rescue nil
+    end
+
+    def purge_old_lockfile(filename, expire)
+      Dir.glob(filename+".*") do |f|
+        ts, pid = f.split(/\./)[-2,2]
+        if ts.to_i < Time.now.to_i-expire then
+          begin
+            File.unlink f
+          rescue Errno::ENOENT
+          end
+        end
+      end
+    end
+  end
+
 end
 
 TPOPS.add_mailbox_class "maildir",TPOPS::MailboxMaildir

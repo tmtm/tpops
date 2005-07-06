@@ -1,17 +1,17 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.66 2004/10/26 05:34:05 tommy Exp $
+# $Id: tpops,v 1.67 2005/07/06 13:22:09 tommy Exp $
 #
-# Copyright (C) 2003-2004 TOMITA Masahiro
+# Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
 #
 
 $:.unshift File.dirname($0)
 
-require "syslog"
 require "optconfig"
-require "tserver"
+require "log"
+require "tpops"
 
-$version = "0.6.5"
+$version = "0.7"
 
 $options = {
   ["config", "f"]	=> true,
@@ -31,598 +31,17 @@ $options = {
   "syslog"		=> [true, "mail"],
   "auth-type"		=> [true, "passwd"],
   "mailbox-type"	=> [true, "maildir"],
+  "parallel-type"	=> [true, "prefork"],
   "error-interval"	=> [true, 5],
-  "min-servers"		=> [true, 5],
-  "max-servers"		=> [true, 50],
-  "max-use"		=> [true, 100],
-  "max-idle"		=> [true, 100],
   "pid-file"		=> true,
 }
-
-def log_debug(str)
-  Syslog.debug("%s", str) if Syslog.opened? and $conf["debug"]
-end
-
-def log_info(str)
-  Syslog.info("%s", str) if Syslog.opened?
-end
-
-def log_notice(str)
-  Syslog.notice("%s", str) if Syslog.opened?
-end
-
-def log_warn(str)
-  Syslog.warning("%s", str) if Syslog.opened?
-end
-
-def log_err(str)
-  Syslog.err("%s", str) if Syslog.opened?
-end
-
-class TPOPS
-
-  class Error < StandardError
-  end
-
-  @@auth_classes = {}
-  @@mailbox_classes = {}
-
-  def self.add_auth_class(name, klass)
-    @@auth_classes[name] = klass
-  end
-
-  def self.auth_class=(name)
-    @@auth_class = name
-  end
-
-  def self.auth_class()
-    @@auth_classes[@@auth_class]
-  end
-
-  def self.add_mailbox_class(name, klass)
-    @@mailbox_classes[name] = klass
-  end
-
-  def self.mailbox_class=(name)
-    @@mailbox_class = name
-  end
-
-  def self.mailbox_class()
-    @@mailbox_classes[@@mailbox_class]
-  end
-
-  def start()
-    ts = nil
-    loop = true
-    while loop do
-      load_config
-
-      TServer.logging = $conf["debug"] ? (Syslog.opened? ? :syslog : true) : nil
-      if $conf["port"] != @port then
-        ts.close if ts
-        ts = TServer.new(*($conf["port"].to_s.split(/:/)))
-        @port = $conf["port"]
-      end
-
-      ts.handle_signal = false
-      ts.on_child_start = Proc.new do
-        begin
-          Process.gid = $gid if $gid
-          Process.uid = $uid if $uid
-          Process.euid = $uid if $uid
-        rescue
-          log_err "setuid/setgid #{$!}"
-          sleep 5
-        end
-      end
-      unless @signal_setup then
-        trap "HUP" do
-          log_notice "tpops daemon reload"
-          ts.stop
-        end
-        trap "TERM" do
-          loop = false
-          ts.stop
-        end
-        trap "INT" do
-          ts.interrupt
-          loop = false
-          ts.stop
-        end
-        @signal_setup = true
-      end
-
-      if $conf["error-log"] then
-        File.open($conf["error-log"], "a") do |f|
-          STDERR.reopen f
-          STDERR.sync = true
-        end
-      end
-      if not $conf["fg"] and not $already_forked then
-        if fork then
-          exit
-        end
-        Process.setsid
-        $already_forked = true
-        log_notice "tpops daemon start"
-      end
-      File.unlink @pid_file rescue nil if @pid_file
-      @pid_file = nil
-      if $conf["pid-file"] and not $conf["pid-file"].empty? then
-        File.open($conf["pid-file"], "w") do |f| f.puts $$ end
-        @pid_file = $conf["pid-file"]
-      end
-
-      ts.min_servers = $conf["min-servers"].to_i
-      ts.max_servers = $conf["max-servers"].to_i
-      ts.max_use = $conf["max-use"].to_i
-      ts.max_idle = $conf["max-idle"].to_i
-
-      ts.start do |conn|
-        begin
-          Conn.new conn
-        rescue TPOPS::Error
-          log_err "#{$!}"
-          exit 1
-        rescue
-          log_err "#{$@[0]}: #{$!}"
-          STDERR.puts Time.now.inspect
-          STDERR.flush
-          raise
-        end
-      end
-    end
-    File.unlink @pid_file rescue nil if @pid_file
-    log_notice "tpops daemon stop" unless $conf["inetd"]
-  end
-
-  def start_by_inetd()
-    File.open($conf["error-log"] || "/dev/null", "a") do |f|
-      STDERR.reopen f
-      STDERR.sync
-    end
-    begin
-      Process.uid = $uid if $uid
-      Process.euid = $uid if $uid
-      Process.gid = $gid if $gid
-      Conn.new(Socket.for_fd(STDIN.fileno))
-    rescue TPOPS::Error
-      log_err "#{$!}"
-    rescue
-      log_err "#{$@[0]}: #{$!}"
-      STDERR.puts Time.now.inspect
-      raise
-    end
-    exit
-  end
-
-  def load_config()
-    begin
-      $conf.parse ARGV
-    rescue OptConfig::Error
-      log_err "#{$!}"
-      raise
-    end
-
-    TPOPS.auth_class = $conf["auth-type"]
-    TPOPS.mailbox_class = $conf["mailbox-type"]
-
-    TPOPS.auth_class.reset
-
-    if $conf["user"] then
-      if $conf["user"] =~ /\A\d+\Z/ then
-        $uid = $conf["user"].to_i
-      else
-        require "etc"
-        $uid = Etc.getpwnam($conf["user"]).uid
-      end
-    end
-    if $conf["group"] then
-      if $conf["group"] =~ /\A\d+\Z/ then
-        $uid = $conf["group"].to_i
-      else
-        require "etc"
-        $gid = Etc.getgrnam($conf["group"]).gid
-      end
-    end
-    if not $conf["syslog"] or $conf["syslog"] == "none" then
-      Syslog.close if Syslog.opened?
-    else
-      fac = eval "Syslog::LOG_#{$conf["syslog"].upcase}"
-      if Syslog.opened? then
-        Syslog.reopen(File.basename($0), nil, fac)
-      else
-        Syslog.open(File.basename($0), nil, fac)
-      end
-    end
-  end
-
-  class Conn
-    def initialize(sock)
-      @sock = sock
-      @status = :AUTHORIZATION
-      @user = nil
-      @apopkey = TPOPS.auth_class.apop? ? "<#{$$}.#{Time.now.to_i}@#{$conf["hostname"]}>" : ""
-      @start_time = Time.now
-      @peer_addr = sock_to_addr @sock
-
-      log_info "connect from #{@peer_addr}"
-
-      def @sock.connect_time=(t)
-        @connect_time = t
-      end
-
-      def @sock.gets()
-        @gets_safe_buf = [] unless @gets_safe_buf
-        @gets_safe_unterminated_str = "" unless @gets_safe_unterminated_str
-        if @gets_safe_buf.length > 0 then
-          return @gets_safe_buf.shift
-        end
-        str = @gets_safe_unterminated_str
-        @gets_safe_unterminated_str = ""
-        until str.include? "\n" do
-          if IO.select([self], nil, nil, $conf["command-timeout"].to_i) == nil then
-            raise TPOPS::Error, "Command timeout"
-          end
-          begin
-            str << self.sysread(4096)
-          rescue EOFError, Errno::ECONNRESET
-            return nil if str.empty?
-            break
-          end
-        end
-        @gets_safe_buf = str.split /^/
-        unless @gets_safe_buf[-1][-1] == ?\n then
-          @gets_safe_unterminated_str = @gets_safe_buf.pop
-        end
-        ret = @gets_safe_buf.shift
-        raise TPOPS::Error, "line exceed 1024 bytes" if ret.length >= 1024
-        ret
-      end
-
-      def @sock.write(str)
-        begin
-          super str
-        rescue
-          raise TPOPS::Error, $!.to_s
-        end
-      end
-
-      @sock.connect_time = Time.now.to_i
-      ok "TPOPS ready. #{@apopkey}"
-      begin
-        catch :disconnect do
-          loop do
-            r = @sock.gets
-            if not r then
-              log_warn "connection closed unexpectedly"
-              break
-            end
-            r = r.chomp
-            log_debug "< #{r}"
-            comm, arg = r.split(/ /, 2)
-            next unless comm
-            args = arg ? arg.split(/ /) : []
-            case @status
-            when :AUTHORIZATION
-              case comm.upcase
-              when "QUIT" then comm_auth_quit args
-              when "USER" then comm_user args
-              when "PASS" then comm_pass [arg]
-              when "APOP" then comm_apop args
-              else
-                err "invalid command"
-              end
-            when :TRANSACTION
-              case comm.upcase
-              when "STAT" then comm_stat args
-              when "LIST" then comm_list args
-              when "RETR" then comm_retr args
-              when "DELE" then comm_dele args
-              when "NOOP" then comm_noop args
-              when "RSET" then comm_rset args
-              when "TOP"  then comm_top args
-              when "UIDL" then comm_uidl args
-              when "LAST" then comm_last args
-              when "QUIT" then comm_quit args
-              else
-                err "invalid command"
-              end
-            end
-          end
-        end
-      ensure
-        @mailbox.unlock if @mailbox
-        write_log rescue nil
-        @sock.close rescue nil
-        log_info "disconnect from #{@peer_addr}" rescue nil
-      end
-    end
-
-    def err(arg=nil)
-      sleep $conf["error-interval"].to_i
-      @sock.write(arg ? "-ERR #{arg}\r\n" : "-ERR\r\n")
-      log_debug "> -ERR #{arg}"
-    end
-
-    def ok(arg=nil)
-      @sock.write(arg ? "+OK #{arg}\r\n" : "+OK\r\n")
-      log_debug "> +OK #{arg}"
-    end
-
-    def comm_auth_quit(arg)
-      if arg.size != 0 then
-        err "too many arguments"
-        return
-      end
-      ok "server signing off" rescue true
-      throw :disconnect
-    end
-
-    def comm_user(arg)
-      if @user then
-        err "invalid command"
-        return
-      end
-      if arg.size != 1 then
-        err "too few/many arguments"
-        return
-      end
-      ok "password required"
-      @user = arg[0]
-      if $conf["domain"] and @user !~ /[@%\+]/ then
-        @user = @user+"@"+$conf["domain"]
-      end
-    end
-
-    def comm_pass(arg)
-      if not @user then
-        err "invalid command"
-        return
-      end
-      if arg.size != 1 then
-        err "too few/many arguments"
-        return
-      end
-
-      begin
-        @auth = TPOPS.auth_class.new @user, arg[0]
-        to_transaction
-      rescue TPOPS::Error
-        log_notice "authentication failed: #{@user}"
-        err "authentication failed"
-        throw :disconnect
-      end
-    end
-
-    def comm_apop(arg)
-      unless TPOPS.auth_class.apop? then
-        err "APOP not supported"
-        return
-      end
-      if @user then
-        err "invalid command"
-        return
-      end
-      if arg.size != 2 then
-        err "too few/many arguments"
-        return
-      end
-      @user = arg[0]
-
-      begin
-        @auth = TPOPS.auth_class.new arg[0], arg[1], @apopkey
-        to_transaction
-      rescue TPOPS::Error
-        log_notice "authentication failed: #{@user}"
-        err "authentication failed"
-        throw :disconnect
-      end
-    end  
-
-    def to_transaction()
-      begin
-        @mailbox = TPOPS.mailbox_class.new @auth.maildir
-      rescue TPOPS::Error
-        log_err "#{$!}"
-        err $!.to_s
-        throw :disconnect
-      end
-      after_auth_hook(@sock, @auth, @mailbox) if defined? after_auth_hook
-      @status = :TRANSACTION
-      msgs, size = @mailbox.stat
-      @start_mailbox = [msgs, size]
-      ok "#{@user} has #{msgs} messages (#{size} octets)"
-      log_info "login: #{@user} has #{msgs} messages (#{size} octets)"
-    end
-
-    def write_log()
-      if @mailbox then
-        msgs, size = @mailbox.real_stat
-      else
-        msgs, size = 0, 0
-      end
-      if @status == :TRANSACTION then
-        log_info "logout: #{@user} has #{msgs} messages (#{size} octets)"
-      end
-      if $conf["access-log"] then
-        if @start_mailbox then
-          s_msgs, s_size = @start_mailbox
-        else
-          s_msgs, s_size = 0, 0
-        end
-        u = @user == nil ? "()" : @status == :TRANSACTION ? @user : "(#{@user})"
-        File.open($conf["access-log"], "a") do |f|
-          f.syswrite sprintf("%s %s %s %s %d %d %d %d\n",
-            @peer_addr, @start_time.strftime("%Y/%m/%d %H:%M:%S"),
-            Time.now.strftime("%Y/%m/%d %H:%M:%S"),
-            u, s_msgs, s_size, msgs, size)
-        end
-      end
-    end
-
-    def sock_to_addr(s)
-      begin
-        if s.methods.include? "peeraddr" then
-          return s.peeraddr[3]
-        elsif s.methods.include? "getpeername" then
-          return s.getpeername[4,4].split("").collect{|i| i[0].to_s}.join(".")
-        else
-          return "unknown"
-        end
-      rescue
-        return "unknown"
-      end
-    end
-
-    def comm_stat(arg)
-      if arg.size != 0 then
-        err "too many arguments"
-        return
-      end
-      n, m = @mailbox.stat
-      ok "#{n} #{m}"
-    end
-
-    def comm_list(arg)
-      if arg.size == 0 then
-        n, m = @mailbox.stat
-        ok "#{n} messages (#{m} octets)"
-        @sock.sync = false
-        @mailbox.list_all.each do |n, m|
-          @sock.write "#{n} #{m}\r\n"
-        end
-        @sock.sync = true
-        @sock.write ".\r\n"
-      elsif arg.size == 1 then
-        n, m = @mailbox.list(arg[0].to_i)
-        if n then
-          ok "#{n} #{m}"
-        else
-          err "no such message"
-        end
-      else
-        err "too many arguments"
-      end
-    end
-
-    def comm_retr(arg)
-      if arg.size != 1 then
-        err "too few/many arguments"
-        return
-      end
-      m, size = @mailbox.list(arg[0].to_i)
-      if not m then
-        err "no such message"
-        return
-      end
-      ok "#{size} octets"
-      @sock.sync = false
-      @mailbox.retr(arg[0].to_i) do |line|
-        if line[0] == ?. then line[0,0] = "." end
-        @sock.write line
-      end
-      @sock.sync = true
-      @sock.write ".\r\n"
-    end
-
-    def comm_dele(arg)
-      if arg.size != 1 then
-        err "too few/many arguments"
-        return
-      end
-      if @mailbox.dele(arg[0].to_i) then
-        ok "message deleted"
-      else
-        err "no such message"
-      end
-    end
-
-    def comm_noop(arg)
-      if arg.size != 0 then
-        err "too many arguments"
-        return
-      end
-      ok
-    end
-
-    def comm_rset(arg)
-      if arg.size != 0 then
-        err "too many arguments"
-        return
-      end
-      @mailbox.rset
-      ok
-    end
-
-    def comm_top(arg)
-      if arg.size != 2 then
-        err "too few/many arguments"
-        return
-      end
-      if not @mailbox.list(arg[0].to_i) then
-        err "no such message"
-        return
-      end
-      ok
-      @sock.sync = false
-      @mailbox.top(arg[0].to_i, arg[1].to_i) do |line|
-        if line[0] == ?. then line[0,0] = "." end
-        @sock.write line
-      end
-      @sock.sync = true
-      @sock.write ".\r\n"
-    end
-
-    def comm_uidl(arg)
-      if arg.size == 0 then
-        ok
-        @sock.sync = false
-        @mailbox.uidl_all.each do |m, id|
-          @sock.write "#{m} #{id}\r\n"
-        end
-        @sock.sync = true
-        @sock.write ".\r\n"
-      elsif arg.size == 1 then
-        m, id = @mailbox.uidl(arg[0].to_i)
-        if m then
-          ok "#{m} #{id}"
-        else
-          err "no such message"
-        end
-      else
-        err "too many arguments"
-      end
-    end
-
-    def comm_last(arg)
-      if arg.size != 0 then
-        err "too many arguments"
-        return
-      end
-      n = @mailbox.last
-      ok "#{n}"
-    end
-
-    def comm_quit(arg)
-      if arg.size != 0 then
-        err "too many arguments"
-        return
-      end
-      @mailbox.commit
-      ok "server signing off" rescue true
-      throw :disconnect
-    end
-  end
-
-end
 
 def usage()
   STDERR.puts <<EOS
 Usage: tpops [options]
 options:
   --access-log=filename
-  --auth-type={passwd|mysql|ldap}
+  --auth-type={passwd|mysql}
   --command-timeout=#
   --connection-keep-time=#
   --config=filename, -f filename
@@ -634,15 +53,41 @@ options:
   --group=grpname, -g grpname
   --hostname=hostname
   --inetd
-  --max-idle=#
-  --max-servers=#
-  --max-use=#
-  --min-servers=#
+  --maildir-extended={yes|no}
+  --maildir-lock={yes|no}
+  --maildir-uidl-convert={yes|no}
+  --maildir-use-filesize={yes|no}
+  --parallel-type={prefork|fork|thread}
   --pid-file=filename
   --port=#, -p #
   --syslog=name
   --user=username, -u username
   --version
+
+[auth-type=passwd]
+  --apop-passwd-file=filename
+  --maildir=dirname
+
+[auth-type=mysql]
+  --mysql-auth-query=query
+  --mysql-crypt-passwd={yes|no|crypt|sha}
+  --mysql-db=dbname
+  --mysql-passwd=password
+  --mysql-server=hostname
+  --mysql-user=username
+
+[parallel-type=prefork]
+  --max-idle=#
+  --max-servers=#
+  --max-use=#
+  --min-servers=#
+
+[parallel-type=fork]
+  --max-servers=#
+
+[parallel-type=thread]
+  --max-servers=#
+
 EOS
 end
 
@@ -651,16 +96,16 @@ Dir.glob("#{script_dir}/plugin/*.rb") do |f|
   load f
 end
 
-$conf = OptConfig.new
-$conf.options = $options
+TPOPS.conf = OptConfig.new
+TPOPS.conf.options = $options
 begin
-  n = $conf.parse ARGV
-  if $conf["config"] then
-    $conf.file = $conf["config"]
-    n = $conf.parse ARGV
+  n = TPOPS.conf.parse ARGV
+  if TPOPS.conf["config"] then
+    TPOPS.conf.file = TPOPS.conf["config"]
+    n = TPOPS.conf.parse ARGV
   elsif File.exist? "#{script_dir}/tpops.conf"
-    $conf.file = "#{script_dir}/tpops.conf"
-    n = $conf.parse ARGV
+    TPOPS.conf.file = "#{script_dir}/tpops.conf"
+    n = TPOPS.conf.parse ARGV
   end
   if ARGV.size > n then
     usage
@@ -671,7 +116,7 @@ rescue OptConfig::Error
   exit 1
 end
 
-if $conf["version"] then
+if TPOPS.conf["version"] then
   puts "TPOPS version #{$version}"
   exit
 end
@@ -679,12 +124,12 @@ end
 begin
   tpops = TPOPS.new
   tpops.load_config
-  if $conf["inetd"] then
+  if TPOPS.conf["inetd"] then
     tpops.start_by_inetd
   else
     tpops.start
   end
 rescue
-  log_err "#{$@[0]}: #{$!}"
+  Log.err "#{$@[0]}: #{$!}"
   raise
 end

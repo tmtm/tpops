@@ -174,8 +174,8 @@
 	      <td>メールボックスをロックします。ログイン中は同じメールボックスを使用する ID ではログインできません。
 	    <tr>
 	      <td>maildir-uidl-convert<td>no
-	      <td>Maildir/tpops_uidl ファイルがある場合に UIDL を変換します。
-		tpops_uidl ファイルの内容は「ファイル名&lt;TAB&gt;UIDL」の行のリストです。
+	      <td>Maildir/.tpops_uidl ファイルがある場合に UIDL を変換します。
+		.tpops_uidl ファイルの内容は「ファイル名&lt;TAB&gt;UIDL」の行のリストです。
 	    <tr>
 	      <th colspan=3>auth-type = passwd 時に有効なパラメータ
 	    <tr>
@@ -351,6 +351,14 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.7 2005-07-xx
+      <dd>
+	<ul>
+	  <li>parallel オプション導入
+	  <li>tpops_uidl のファイル名を変更
+
+	</ul>
+
       <dt>0.6.5 2004-10-26
       <dd>
 	<ul>
@@ -358,7 +366,6 @@
 	  <li>BUGFIX: connection-keep-time 超過時に落ちる。
 	  <li>重複ログイン時にログを出力するようにした。
 	  <li>ECONNRESET をハンドリングした。
-	  <li>
 	</ul>
 
       <dt>0.6.4 2004-10-08
@@ -577,7 +584,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Tue Oct 26 14:33:24 JST 2004
+Last modified: Mon Jul  4 01:04:18 JST 2005
 <!-- hhmts end -->
     </p>
   </body>

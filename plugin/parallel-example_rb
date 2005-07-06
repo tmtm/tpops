@@ -1,0 +1,41 @@
+# $Id: parallel-example_rb,v 1.1 2005/07/06 13:22:09 tommy Exp $
+#
+# Copyright (C) 2003-2005 TOMITA Masahiro
+# tommy@tmtm.org
+#
+
+require "socket"
+
+class TPOPS
+  class Dummy
+    # サーバソケットのオープン
+    def initialize(*args)
+      @sock = TCPServer.new(*args)
+    end
+
+    # ソケットクローズ
+    def close()
+      @sock.close
+    end
+
+    # 接続待ち受け開始
+    def start()
+      @flag = true
+      while @flag
+        conn = @sock.accept
+        yield conn
+        conn.close
+      end
+    end
+
+    # 接続待ち受け終了＆子プロセス終了
+    def stop()
+      @flag = false
+    end
+
+    # 子プロセス強制終了
+    def interrupt()
+    end
+  end
+
+end

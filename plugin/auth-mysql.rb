@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.7 2004/07/15 13:01:42 tommy Exp $
+# $Id: auth-mysql.rb,v 1.8 2005/07/06 13:22:09 tommy Exp $
 
 require 'md5'
 
@@ -17,7 +17,7 @@ class TPOPS
     @@my = nil
 
     def self.apop?()
-      return $conf["mysql-crypt-passwd"] == "no"
+      return TPOPS.conf["mysql-crypt-passwd"] == "no"
     end
 
     def self.reset()
@@ -28,13 +28,13 @@ class TPOPS
     def my()
       require 'mysql'
       if @@my == nil then
-	@@my = Mysql.new($conf["mysql-server"], $conf["mysql-user"], $conf["mysql-passwd"], $conf["mysql-db"])
+	@@my = Mysql.new(TPOPS.conf["mysql-server"], TPOPS.conf["mysql-user"], TPOPS.conf["mysql-passwd"], TPOPS.conf["mysql-db"])
       end
       @@my
     end
 
     def initialize(user, pass, apop=nil)
-      queries = [$conf["mysql-auth-query"]]
+      queries = [TPOPS.conf["mysql-auth-query"]]
       res = nil
       queries.each do |qu|
 	res = my.query(sprintf(qu, my.quote(user)))
@@ -47,12 +47,12 @@ class TPOPS
         if pass != MD5.new(apop+pw).hexdigest then
           raise TPOPS::Error, "authentication failed"
         end
-      elsif $conf["mysql-crypt-passwd"] == "no" then
+      elsif TPOPS.conf["mysql-crypt-passwd"] == "no" then
         if pass != pw then
           raise TPOPS::Error, "authentication failed"
         end
       else
-        case $conf["mysql-crypt-passwd"]
+        case TPOPS.conf["mysql-crypt-passwd"]
         when "crypt"
           if pass.crypt(pw) != pw then
             raise TPOPS::Error, "authentication failed"
