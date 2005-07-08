@@ -1,4 +1,4 @@
-# $Id: tpops.rb,v 1.4 2005/07/08 07:44:32 tommy Exp $
+# $Id: tpops.rb,v 1.5 2005/07/08 09:13:44 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -427,7 +427,6 @@ class TPOPS::Conn
       err $!.to_s
       throw :disconnect
     end
-    after_auth_hook(@sock, @auth, @mailbox) if defined? after_auth_hook
     @status = :TRANSACTION
     msgs, size = @mailbox.stat
     @start_mailbox = [msgs, size]

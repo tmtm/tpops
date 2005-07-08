@@ -1,0 +1,7 @@
+class TPOPS::Conn
+  alias :to_transaction_orig :to_transaction
+  def to_transaction()
+    to_transaction_orig
+    STDERR.puts "user=#{@user}, ipaddr=#{@peer_addr}"
+  end
+end
