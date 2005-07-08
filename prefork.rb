@@ -1,4 +1,4 @@
-# $Id: prefork.rb,v 1.1 2005/07/06 13:22:09 tommy Exp $
+# $Id: prefork.rb,v 1.2 2005/07/08 04:54:20 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -223,12 +223,6 @@ class PreFork
 
   private
 
-  def exit_child()
-    PreFork.log "c: exit"
-    @on_child_exit.call if defined? @on_child_exit
-    exit!
-  end
-
   def make_child(block)
     PreFork.log "p: make child"
     to_child = IO.pipe
@@ -252,38 +246,41 @@ class PreFork
 
   def child(block)
     PreFork.log "c: start"
-    trap "TERM" do exit_child end
-    @on_child_start.call if defined? @on_child_start
-    cnt = 0
-    lock = File.open(@lockf, "w")
-    last_connect = nil
-    while @max_request_per_child == 0 or cnt < @max_request_per_child
-      tout = last_connect ? last_connect+@max_idle-Time.now : nil
-      break if tout and tout <= 0
-      r, = IO.select([@socks, @from_parent].flatten, nil, nil, tout)
-      break unless r
-      break if r.include? @from_parent
-      next unless lock.flock(File::LOCK_EX|File::LOCK_NB)
-      r, = IO.select(@socks, nil, nil, 0)
-      if r == nil then
+    begin
+      @on_child_start.call if defined? @on_child_start
+      cnt = 0
+      lock = File.open(@lockf, "w")
+      last_connect = nil
+      while @max_request_per_child == 0 or cnt < @max_request_per_child
+        tout = last_connect ? last_connect+@max_idle-Time.now : nil
+        break if tout and tout <= 0
+        r, = IO.select([@socks, @from_parent].flatten, nil, nil, tout)
+        break unless r
+        break if r.include? @from_parent
+        next unless lock.flock(File::LOCK_EX|File::LOCK_NB)
+        r, = IO.select(@socks, nil, nil, 0)
+        if r == nil then
+          lock.flock(File::LOCK_UN)
+          next
+        end
+        begin
+          s = r[0].accept
+        rescue Errno::ECONNABORTED, Errno::ECONNREFUSED, Errno::ECONNRESET
+          next
+        end
         lock.flock(File::LOCK_UN)
-        next
+        PreFork.log "c: connect from client"
+        @to_parent.syswrite "connect\n"
+        block.call(s)
+        s.close unless s.closed?
+        PreFork.log "c: disconnect from client"
+        @to_parent.syswrite "disconnect\n" rescue nil
+        cnt += 1
+        last_connect = Time.now
       end
-      begin
-        s = r[0].accept
-      rescue Errno::ECONNABORTED, Errno::ECONNREFUSED, Errno::ECONNRESET
-        next
-      end
-      lock.flock(File::LOCK_UN)
-      PreFork.log "c: connect from client"
-      @to_parent.syswrite "connect\n"
-      block.call(s)
-      s.close unless s.closed?
-      PreFork.log "c: disconnect from client"
-      @to_parent.syswrite "disconnect\n" rescue nil
-      cnt += 1
-      last_connect = Time.now
+    ensure
+      PreFork.log "c: exit"
+      @on_child_exit.call if defined? @on_child_exit
     end
-    exit_child
   end
 end
