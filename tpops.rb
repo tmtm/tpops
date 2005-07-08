@@ -1,4 +1,4 @@
-# $Id: tpops.rb,v 1.3 2005/07/08 05:57:51 tommy Exp $
+# $Id: tpops.rb,v 1.4 2005/07/08 07:44:32 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -275,22 +275,30 @@ class TPOPS::Conn
     end
 
     connect_time = Time.now.to_i
-    @sock.timeout = TPOPS.conf["command-timeout"]
+    @sock.timeout = TPOPS.conf["command-timeout"].to_i
     @sock.maxlength = 1024
 
     ok "TPOPS ready. #{@apopkey}"
     begin
       catch :disconnect do
         loop do
-          r = @sock.gets_safe
+          begin
+            r = @sock.gets_safe
+          rescue Errno::ETIMEDOUT
+            Log.warn "command timeout"
+            break
+          rescue Errno::E2BIG
+            Log.warn "line too long"
+            break
+          end
           if not r then
             Log.warn "connection closed unexpectedly"
             break
           end
-          if connect_time < Time.now-TPOPS.conf["connection-keep-time"].to_i then
+          if connect_time < Time.now.to_i-TPOPS.conf["connection-keep-time"].to_i then
             Log.warn "connection time exceeded"
             err "connection time exceeded"
-            throw :disconnect
+            break
           end
           r = r.chomp
           Log.debug "< #{r}"

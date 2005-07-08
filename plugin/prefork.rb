@@ -1,4 +1,4 @@
-# $Id: prefork.rb,v 1.1 2005/07/06 13:22:09 tommy Exp $
+# $Id: prefork.rb,v 1.2 2005/07/08 07:44:32 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -37,13 +37,13 @@ class TPOPS
     end
 
     def start()
-      logging = TPOPS.conf["debug"] ? (Syslog.opened? ? :syslog : true) : nil
-      min_servers = TPOPS.conf["min-servers"].to_i
-      max_servers = TPOPS.conf["max-servers"].to_i
-      max_use = TPOPS.conf["max-use"].to_i
-      max_idle = TPOPS.conf["max-idle"].to_i
+      PreFork.logging = TPOPS.conf["debug"] ? (Syslog.opened? ? :syslog : true) : nil
+      @min_servers = TPOPS.conf["min-servers"].to_i
+      @max_servers = TPOPS.conf["max-servers"].to_i
+      @max_use = TPOPS.conf["max-use"].to_i
+      @max_idle = TPOPS.conf["max-idle"].to_i
       socks.each do |s|
-        s.listen [max_servers, 5].max
+        s.listen [@max_servers, 5].max
       end
       super
     end
