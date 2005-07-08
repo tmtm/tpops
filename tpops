@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.67 2005/07/06 13:22:09 tommy Exp $
+# $Id: tpops,v 1.68 2005/07/08 10:15:57 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -38,6 +38,7 @@ $options = {
 
 def usage()
   STDERR.puts <<EOS
+TPOPS version #{$version}
 Usage: tpops [options]
 options:
   --access-log=filename
@@ -89,6 +90,7 @@ options:
   --max-servers=#
 
 EOS
+  exit 1
 end
 
 script_dir = File.dirname $0
@@ -113,7 +115,6 @@ begin
 rescue OptConfig::Error
   STDERR.puts $!
   usage
-  exit 1
 end
 
 if TPOPS.conf["version"] then
