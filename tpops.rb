@@ -1,4 +1,4 @@
-# $Id: tpops.rb,v 1.2 2005/07/06 15:46:08 tommy Exp $
+# $Id: tpops.rb,v 1.3 2005/07/08 05:57:51 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -265,11 +265,6 @@ class TPOPS::Conn
 
     class <<@sock
       include GetsSafe
-
-      def connect_time=(t)
-        @connect_time = t
-      end
-
       def write(str)
         begin
           super str
@@ -279,7 +274,7 @@ class TPOPS::Conn
       end
     end
 
-    @sock.connect_time = Time.now.to_i
+    connect_time = Time.now.to_i
     @sock.timeout = TPOPS.conf["command-timeout"]
     @sock.maxlength = 1024
 
@@ -291,6 +286,11 @@ class TPOPS::Conn
           if not r then
             Log.warn "connection closed unexpectedly"
             break
+          end
+          if connect_time < Time.now-TPOPS.conf["connection-keep-time"].to_i then
+            Log.warn "connection time exceeded"
+            err "connection time exceeded"
+            throw :disconnect
           end
           r = r.chomp
           Log.debug "< #{r}"
