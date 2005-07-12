@@ -1,4 +1,4 @@
-# $Id: tpops.rb,v 1.5 2005/07/08 09:13:44 tommy Exp $
+# $Id: tpops.rb,v 1.6 2005/07/12 15:25:14 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -523,6 +523,7 @@ class TPOPS::Conn
       @sock.sync = true
       @sock.write ".\r\n"
     rescue Errno::ENOENT
+      @sock.sync = true
       err "no such message"
     end
   end
@@ -579,6 +580,7 @@ class TPOPS::Conn
       @sock.sync = true
       @sock.write ".\r\n"
     rescue Errno::ENOENT
+      @sock.sync = true
       err "no such message"
     end
   end
