@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.10 2005/07/22 02:03:24 tommy Exp $
+# $Id: auth-mysql.rb,v 1.11 2005/07/22 09:27:17 tommy Exp $
 
 require 'md5'
 
@@ -40,9 +40,9 @@ class TPOPS
         qu = qu.gsub(/%([%sud])/) do
           case $1
           when "%" then "%"
-          when "s" then user
-          when "u" then user.split(/@/)[0]
-          when "d" then user.include?("@") ? user.split(/@/,2)[1] : ""
+          when "s" then my.quote(user)
+          when "u" then my.quote(user.include?("@") ? user.split(/@/,2)[0] : user)
+          when "d" then my.quote(user.include?("@") ? user.split(/@/,2)[1] : "")
           end
         end
 	res = my.query(qu)
