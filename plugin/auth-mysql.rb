@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.8 2005/07/06 13:22:09 tommy Exp $
+# $Id: auth-mysql.rb,v 1.9 2005/07/22 01:57:04 tommy Exp $
 
 require 'md5'
 
@@ -37,7 +37,15 @@ class TPOPS
       queries = [TPOPS.conf["mysql-auth-query"]]
       res = nil
       queries.each do |qu|
-	res = my.query(sprintf(qu, my.quote(user)))
+        qu = qu.gsub(/%([%sud])/) do
+          case $1
+          when "%" then "%"
+          when "s" then user
+          when "u" then user.split(/@/)[0]
+          when "d" then user.include? "@" ? user.split(/@/,2)[1] : ""
+          end
+        end
+	res = my.query(qu)
 	break if res.num_rows > 0
 	res = nil
       end
