@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.9 2005/07/22 01:57:04 tommy Exp $
+# $Id: auth-mysql.rb,v 1.10 2005/07/22 02:03:24 tommy Exp $
 
 require 'md5'
 
@@ -42,7 +42,7 @@ class TPOPS
           when "%" then "%"
           when "s" then user
           when "u" then user.split(/@/)[0]
-          when "d" then user.include? "@" ? user.split(/@/,2)[1] : ""
+          when "d" then user.include?("@") ? user.split(/@/,2)[1] : ""
           end
         end
 	res = my.query(qu)
