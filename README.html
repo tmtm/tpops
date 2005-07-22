@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.7.1.tar.gz">tpops-0.7.1.tar.gz</a>
       <li><a href="tpops-0.7.tar.gz">tpops-0.7.tar.gz</a>
       <li><a href="tpops-0.6.5.tar.gz">tpops-0.6.5.tar.gz</a>
       <li><a href="tpops-0.6.4.tar.gz">tpops-0.6.4.tar.gz</a>
@@ -212,6 +213,9 @@
 	      <td>
 		ログイン名,パスワード,Maildir を取り出すためのクエリ文字列。
 		「%s」はクライアントから渡されたログイン名に置き換えられます。
+		「%u」はログイン名のローカルパート(@より左の部分)、
+		「%d」はログイン名のドメインパート(@より右の部分)に置き換えられます。
+		ログイン名に「@」が含まれていない場合は「%d」は空になります。
 	    <tr>
 	      <td>mysql-crypt-passwd<td>no
 	      <td>
@@ -359,6 +363,13 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.7.1 2005-07-22
+      <dd>
+	<ul>
+	  <li>BUGFIX: セッション中に外からメッセージが消された場合にクライアントに応答が返らない。
+	  <li>mysql-auth-query に %u, %d を追加。
+	</ul>
+
       <dt>0.7 2005-07-08
       <dd>
 	<ul>
@@ -593,7 +604,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Fri Jul  8 19:16:05 JST 2005
+Last modified: Fri Jul 22 10:23:44 JST 2005
 <!-- hhmts end -->
     </p>
   </body>
