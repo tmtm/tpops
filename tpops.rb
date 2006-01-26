@@ -1,4 +1,4 @@
-# $Id: tpops.rb,v 1.6 2005/07/12 15:25:14 tommy Exp $
+# $Id: tpops.rb,v 1.7 2006/01/26 09:12:55 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -316,7 +316,11 @@ class TPOPS::Conn
           when :TRANSACTION
             m = TPOPS.command[:TRANSACTION][comm.upcase]
             if m then
-              self.method(m).call(args)
+              begin
+                self.method(m).call(args)
+              rescue TPOPS::Error => e
+                err e.message
+              end
             else
               err "invalid command"
             end
@@ -420,8 +424,13 @@ class TPOPS::Conn
   end  
 
   def to_transaction()
+    args = [@auth.maildir, @auth]
     begin
-      @mailbox = TPOPS.mailbox_class.new @auth.maildir
+      @mailbox = TPOPS.mailbox_class.new *args
+    rescue ArgumentError
+      raise if args.size == 1
+      args = [args[0]]
+      retry
     rescue TPOPS::Error
       Log.err "#{$!} for #{@user}"
       err $!.to_s

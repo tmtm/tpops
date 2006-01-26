@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.15 2006/01/26 05:13:51 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.16 2006/01/26 09:12:55 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -77,7 +77,7 @@ class TPOPS
     end
 
     public
-    def initialize(maildir)
+    def initialize(maildir, auth=nil)
       @files = {}
       return unless File.exist? maildir
       begin

@@ -1,4 +1,4 @@
-# $Id: auth-mysql.rb,v 1.11 2005/07/22 09:27:17 tommy Exp $
+# $Id: auth-mysql.rb,v 1.12 2006/01/26 09:12:55 tommy Exp $
 
 require 'md5'
 
@@ -55,10 +55,12 @@ class TPOPS
         if pass != MD5.new(apop+pw).hexdigest then
           raise TPOPS::Error, "authentication failed"
         end
+        @passwd = pw
       elsif TPOPS.conf["mysql-crypt-passwd"] == "no" then
         if pass != pw then
           raise TPOPS::Error, "authentication failed"
         end
+        @passwd = pw
       else
         case TPOPS.conf["mysql-crypt-passwd"]
         when "crypt"
@@ -76,11 +78,12 @@ class TPOPS
             raise TPOPS::Error, "authentication failed"
           end
         end
+        @passwd = pass
       end
       @login, @maildir = login, maildir
     end
 
-    attr_reader :login, :maildir
+    attr_reader :login, :passwd, :maildir
 
   end
 end

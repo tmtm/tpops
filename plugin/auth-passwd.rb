@@ -1,4 +1,4 @@
-# $Id: auth-passwd.rb,v 1.5 2005/07/06 13:22:09 tommy Exp $
+# $Id: auth-passwd.rb,v 1.6 2006/01/26 09:12:55 tommy Exp $
 
 require 'etc'
 
@@ -37,8 +37,10 @@ class TPOPS
         if pw == nil or pass != MD5.new(apop+pw).hexdigest then
           raise TPOPS::Error, "authentication failed"
         end
+        @passwd = pw
 	return
       else
+        @passwd = pass
 	if pw.passwd == 'x' then
           IO.foreach("/etc/shadow") do |line|
             shuser, shpw = line.split(/:/)
@@ -56,7 +58,7 @@ class TPOPS
       end
     end
 
-    attr_reader :login, :maildir
+    attr_reader :login, :passwd, :maildir
 
   end
 end
