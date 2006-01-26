@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.8.tar.gz">tpops-0.8.tar.gz</a>
       <li><a href="tpops-0.7.2.tar.gz">tpops-0.7.2.tar.gz</a>
       <li><a href="tpops-0.7.1.tar.gz">tpops-0.7.1.tar.gz</a>
       <li><a href="tpops-0.7.tar.gz">tpops-0.7.tar.gz</a>
@@ -73,9 +74,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.7.2.tar.gz
-# chown -R root:root tpops-0.7.2
-# ln -s tpops-0.7.2 tpops
+# tar xpfvz /tmp/tpops-0.8.tar.gz
+# chown -R root:root tpops-0.8
+# ln -s tpops-0.8 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -146,6 +147,10 @@
 	      <td>
 		ユーザ認証方式。passwd, mysql のいずれかを指定します。
 	    <tr>
+	      <td>mailbox-type<td>maildir
+	      <td>
+		メールボックス形式。maildir, proxy のいずれかを指定します。
+	    <tr>
 	      <td>parallel-type<td>prefork
 	      <td>
 		並列方式。prefork, fork, thread のいずれかを指定します。
@@ -170,22 +175,6 @@
 	      <td>max-idle<td>100
 	      <td>最大接続待ち時間。接続終了後、この時間内に新たな接続がないと子プロセスは終了します。
 		parallel-type=prefork 時のみ有効。
-	    <tr>
-	      <td>maildir-use-filesize<td>yes
-	      <td>Maildir 形式で保存されているメールファイルのサイズを、メールのサイズとして扱います。
-		RFCに従わなくなる可能性があるので注意。
-	    <tr>
-	      <td>maildir-extended<td>yes
-	      <td>Maildir 形式で保存されているメールファイルのファイル名中に「S=数値」があれば、それをメールのサイズとして扱います。
-		maildir-use-filesize よりも優先されます。
-		RFCに従わなくなる可能性があるので注意。
-	    <tr>
-	      <td>maildir-lock<td>yes
-	      <td>メールボックスをロックします。ログイン中は同じメールボックスを使用する ID ではログインできません。
-	    <tr>
-	      <td>maildir-uidl-convert<td>no
-	      <td>Maildir/.tpops_uidl ファイルがある場合に UIDL を変換します。
-		.tpops_uidl ファイルの内容は「ファイル名&lt;TAB&gt;UIDL」の行のリストです。
 	    <tr>
 	      <th colspan=3>auth-type = passwd 時に有効なパラメータ
 	    <tr>
@@ -236,6 +225,29 @@
 		      <td>sha<td>SHA-1 で暗号化されたパスワード。
 			パスワード文字列の先頭に "{SHA}" がある場合はその部分を無視して比較します。
 		</table>
+	    <tr>
+	      <th colspan=3>mailbox-type = maildir 時に有効なパラメータ
+	    <tr>
+	      <td>maildir-use-filesize<td>yes
+	      <td>Maildir 形式で保存されているメールファイルのサイズを、メールのサイズとして扱います。
+		RFCに従わなくなる可能性があるので注意。
+	    <tr>
+	      <td>maildir-extended<td>yes
+	      <td>Maildir 形式で保存されているメールファイルのファイル名中に「S=数値」があれば、それをメールのサイズとして扱います。
+		maildir-use-filesize よりも優先されます。
+		RFCに従わなくなる可能性があるので注意。
+	    <tr>
+	      <td>maildir-lock<td>yes
+	      <td>メールボックスをロックします。ログイン中は同じメールボックスを使用する ID ではログインできません。
+	    <tr>
+	      <td>maildir-uidl-convert<td>no
+	      <td>Maildir/tpops_uidl ファイルがある場合に UIDL を変換します。
+		tpops_uidl ファイルの内容は「ファイル名&lt;TAB&gt;UIDL」の行のリストです。
+	    <tr>
+	      <th colspan=3>mailbox-type = proxy 時に有効なパラメータ
+            <tr>
+              <td>pop-server<td>localhost:10110
+              <td>接続先POPサーバを指定します。
 	</table>
 
       <li>auth_type = mysql の場合
@@ -364,6 +376,16 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.8 2006-01-26
+      <dd>
+        <ul>
+          <li>mailbox-type オプション追加。
+          <li>proxy モード追加。
+          <li>.tpops_lock, .tpops_uidl を tpops_lock, tpops_uidl に変更。
+            Courier-IMAP がフォルダと認識してしまうため。
+          <li>排他制御の方法を変更。
+        </ul>
+
       <dt>0.7.2 2006-01-26
       <dd>
         <ul>
@@ -381,7 +403,7 @@
       <dt>0.7 2005-07-08
       <dd>
 	<ul>
-	  <li>parallel オプション導入。
+	  <li>parallel-type オプション導入。
 	  <li>fork, thread モード追加。
 	  <li>tpops_uidl のファイル名を .tpops_uidl に変更。
 	  <li>ロック時に finalizer を使用しないように変更。
@@ -612,7 +634,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Thu Jan 26 14:19:25 JST 2006
+Last modified: Thu Jan 26 20:09:11 JST 2006
 <!-- hhmts end -->
     </p>
   </body>

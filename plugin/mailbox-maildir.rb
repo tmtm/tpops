@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.16 2006/01/26 09:12:55 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.17 2006/01/26 11:10:50 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -11,35 +11,36 @@ $options.update({
   "maildir-uidl-convert"	=> [/^(yes|no)$/i, "no"],
 })
 
+require "lock"
+
 class TPOPS
+  class MailboxMaildir
+    class FileStat
+      def initialize(name, size, mtime)
+        @name, @size, @mtime = name, size, mtime
+        @deleted = false
+        @seen = false
+        @info = ""
+        @in_new = nil
+      end
+      attr_reader :name, :size, :mtime
+      attr_accessor :seen, :info, :in_new
+      def deleted?() @deleted end
+      def delete() @deleted = true end
+      def undelete() @deleted = false end
 
-  class FileStat
-    def initialize(name, size, mtime)
-      @name, @size, @mtime = name, size, mtime
-      @deleted = false
-      @seen = false
-      @info = ""
-      @in_new = nil
-    end
-    attr_reader :name, :size, :mtime
-    attr_accessor :seen, :info, :in_new
-    def deleted?() @deleted end
-    def delete() @deleted = true end
-    def undelete() @deleted = false end
-
-    def real_delete()
-      begin
-        File.unlink @name
-        @deleted = :real_delete
-      rescue Errno::ENOENT
-        # do nothing
-      rescue
-        log_err "delete failed: #{@name}: #{$!}"
+      def real_delete()
+        begin
+          File.unlink @name
+          @deleted = :real_delete
+        rescue Errno::ENOENT
+          # do nothing
+        rescue
+          log_err "delete failed: #{@name}: #{$!}"
+        end
       end
     end
-  end
 
-  class MailboxMaildir
     private
     def exist?(msg)
       if not @files.key? msg then return nil end
@@ -81,7 +82,7 @@ class TPOPS
       @files = {}
       return unless File.exist? maildir
       begin
-        @lock = Lock.new("#{maildir}/.tpops_lock", TPOPS.conf["connection-keep-time"].to_i) if TPOPS.conf["maildir-lock"] == "yes"
+        @lock = Lock.new("#{maildir}/tpops_lock", TPOPS.conf["hostname"]) if TPOPS.conf["maildir-lock"] == "yes"
         files = read_maildir("#{maildir}/cur", false) if File.exist? "#{maildir}/cur"
         files.concat read_maildir("#{maildir}/new", true) if File.exist? "#{maildir}/new"
         files.sort! do |a, b|
@@ -95,9 +96,9 @@ class TPOPS
           @files[i+1] = files[i]
         end
         @uidl_conv = {}
-        if TPOPS.conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/.tpops_uidl" then
+        if TPOPS.conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/tpops_uidl" then
           begin
-            File.open("#{maildir}/.tpops_uidl") do |f|
+            File.open("#{maildir}/tpops_uidl") do |f|
               f.each do |l|
                 fname, uid = l.chomp.split(/\t/,2)
                 @uidl_conv[fname] = uid
@@ -264,49 +265,6 @@ class TPOPS
       [cnt, size]
     end
   end
-
-  class Lock
-    def initialize(filename, expire)
-      purge_old_lockfile(filename, expire)
-      files = Dir.glob("#{filename}\0#{filename}.*")
-      if files.empty? then
-        begin
-          File.open(filename, File::WRONLY|File::CREAT|File::EXCL, 0666).close
-        rescue Errno::EEXIST
-          raise TPOPS::Error, "cannot lock"
-        end
-        files = Dir.glob(filename+".*")
-        unless files.empty? then
-          File.unlink filename rescue nil
-        end
-      end
-      newname = filename+".#{Time.now.to_i}.#{$$}"
-      begin
-        File.rename(filename, newname)
-      rescue Errno::ENOENT
-        raise TPOPS::Error, "cannot lock"
-      end
-      @filename = filename
-      @newname = newname
-    end
-
-    def unlock()
-      File.rename(@newname, @filename) rescue nil
-    end
-
-    def purge_old_lockfile(filename, expire)
-      Dir.glob(filename+".*") do |f|
-        ts, pid = f.split(/\./)[-2,2]
-        if ts.to_i < Time.now.to_i-expire then
-          begin
-            File.unlink f
-          rescue Errno::ENOENT
-          end
-        end
-      end
-    end
-  end
-
 end
 
 TPOPS.add_mailbox_class "maildir",TPOPS::MailboxMaildir
