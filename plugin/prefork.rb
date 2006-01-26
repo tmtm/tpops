@@ -1,4 +1,4 @@
-# $Id: prefork.rb,v 1.2 2005/07/08 07:44:32 tommy Exp $
+# $Id: prefork.rb,v 1.3 2006/01/26 05:20:25 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -28,6 +28,7 @@ class TPOPS
             Process.euid = TPOPS.uid
           end
           Process.gid = TPOPS.gid if TPOPS.gid
+          Process.egid = TPOPS.gid if TPOPS.gid
         rescue
           Log.err "setuid/setgid #{$!}"
           sleep 5

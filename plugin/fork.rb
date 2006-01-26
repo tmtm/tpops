@@ -1,4 +1,4 @@
-# $Id: fork.rb,v 1.1 2005/07/06 13:22:09 tommy Exp $
+# $Id: fork.rb,v 1.2 2006/01/26 05:20:25 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -48,6 +48,7 @@ class TPOPS
           trap :TERM, "EXIT"
           trap :INT, "EXIT"
           Process.gid = TPOPS.gid if TPOPS.gid
+          Process.egid = TPOPS.gid if TPOPS.gid
           Process.uid = TPOPS.uid if TPOPS.uid
           Process.euid = TPOPS.uid if TPOPS.uid
           yield s
