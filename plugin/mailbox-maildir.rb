@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.14 2005/07/06 13:22:09 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.15 2006/01/26 05:13:51 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -80,30 +80,35 @@ class TPOPS
     def initialize(maildir)
       @files = {}
       return unless File.exist? maildir
-      @lock = Lock.new("#{maildir}/.tpops_lock", TPOPS.conf["connection-keep-time"].to_i) if TPOPS.conf["maildir-lock"] == "yes"
-      files = read_maildir("#{maildir}/cur", false)
-      files.concat read_maildir("#{maildir}/new", true)
-      files.sort! do |a, b|
-        r = a.mtime <=> b.mtime
-        if r == 0 then
-          r = File.basename(a.name) <=> File.basename(b.name)
-        end
-        r
-      end
-      files.each_index do |i|
-        @files[i+1] = files[i]
-      end
-      @uidl_conv = {}
-      if TPOPS.conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/.tpops_uidl" then
-        begin
-          File.open("#{maildir}/.tpops_uidl") do |f|
-            f.each do |l|
-              fname, uid = l.chomp.split(/\t/,2)
-              @uidl_conv[fname] = uid
-            end
+      begin
+        @lock = Lock.new("#{maildir}/.tpops_lock", TPOPS.conf["connection-keep-time"].to_i) if TPOPS.conf["maildir-lock"] == "yes"
+        files = read_maildir("#{maildir}/cur", false) if File.exist? "#{maildir}/cur"
+        files.concat read_maildir("#{maildir}/new", true) if File.exist? "#{maildir}/new"
+        files.sort! do |a, b|
+          r = a.mtime <=> b.mtime
+          if r == 0 then
+            r = File.basename(a.name) <=> File.basename(b.name)
           end
-        rescue Errno::ENOENT
+          r
         end
+        files.each_index do |i|
+          @files[i+1] = files[i]
+        end
+        @uidl_conv = {}
+        if TPOPS.conf["maildir-uidl-convert"] == "yes" and File.exist? "#{maildir}/.tpops_uidl" then
+          begin
+            File.open("#{maildir}/.tpops_uidl") do |f|
+              f.each do |l|
+                fname, uid = l.chomp.split(/\t/,2)
+                @uidl_conv[fname] = uid
+              end
+            end
+          rescue Errno::ENOENT
+          end
+        end
+      rescue
+        unlock
+        raise
       end
     end
 
