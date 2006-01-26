@@ -1,4 +1,4 @@
-# $Id: mailbox-maildir.rb,v 1.17 2006/01/26 11:10:50 tommy Exp $
+# $Id: mailbox-maildir.rb,v 1.18 2006/01/26 11:43:00 tommy Exp $
 #
 # Copyright (C) 2003-2004 TOMITA Masahiro
 # tommy@tmtm.org
@@ -82,7 +82,11 @@ class TPOPS
       @files = {}
       return unless File.exist? maildir
       begin
-        @lock = Lock.new("#{maildir}/tpops_lock", TPOPS.conf["hostname"]) if TPOPS.conf["maildir-lock"] == "yes"
+        begin
+          @lock = Lock.new("#{maildir}/tpops_lock", TPOPS.conf["hostname"]) if TPOPS.conf["maildir-lock"] == "yes"
+        rescue Errno::EEXIST
+          raise TPOPS::Error, "cannot lock"
+        end
         files = read_maildir("#{maildir}/cur", false) if File.exist? "#{maildir}/cur"
         files.concat read_maildir("#{maildir}/new", true) if File.exist? "#{maildir}/new"
         files.sort! do |a, b|

@@ -1,4 +1,4 @@
-# $Id: mailbox-proxy.rb,v 1.1 2006/01/26 09:15:10 tommy Exp $
+# $Id: mailbox-proxy.rb,v 1.2 2006/01/26 11:43:00 tommy Exp $
 #
 # Copyright (C) 2003-2006 TOMITA Masahiro
 # tommy@tmtm.org
@@ -25,7 +25,7 @@ class TPOPS
       end
     end
 
-    def wait_p(&block)
+    def wait_p(block=nil)
       ret = ''
       loop do
         r = @sock.gets
@@ -65,15 +65,12 @@ class TPOPS
     end
 
     def list_all()
-      ret = []
       @sock.puts "LIST\r\n"
       wait_ok
-      wait_p.each do |r| ret << r.strip.split end
-      ret
+      wait_p.map{|r| r.strip.split}
     end
 
     def list(msg)
-      if not exist? msg then return nil end
       @sock.puts "LIST #{msg}\r\n"
       return wait_ok.strip.split
     end
@@ -103,7 +100,7 @@ class TPOPS
     def uidl_all()
       @sock.puts "UIDL\r\n"
       wait_ok 
-      wait_p.each do |r| ret << r.strip.split end
+      wait_p.map{|r| r.strip.split}
     end
 
     def uidl(msg)

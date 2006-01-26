@@ -1,5 +1,5 @@
 #!/usr/local/bin/ruby
-# $Id: tpops,v 1.69 2006/01/26 05:14:29 tommy Exp $
+# $Id: tpops,v 1.70 2006/01/26 11:43:00 tommy Exp $
 #
 # Copyright (C) 2003-2005 TOMITA Masahiro
 # tommy@tmtm.org
@@ -11,7 +11,7 @@ require "optconfig"
 require "log"
 require "tpops"
 
-$version = "0.7.2"
+$version = "0.8"
 
 $options = {
   ["config", "f"]	=> true,
