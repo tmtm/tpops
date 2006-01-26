@@ -23,6 +23,7 @@
 <!--
     <h2>ダウンロード</h2>
     <ul>
+      <li><a href="tpops-0.7.2.tar.gz">tpops-0.7.2.tar.gz</a>
       <li><a href="tpops-0.7.1.tar.gz">tpops-0.7.1.tar.gz</a>
       <li><a href="tpops-0.7.tar.gz">tpops-0.7.tar.gz</a>
       <li><a href="tpops-0.6.5.tar.gz">tpops-0.6.5.tar.gz</a>
@@ -61,9 +62,9 @@
 
     <h2>必要なもの</h2>
     <ul>
-      <li><a href="http://www.ruby-lang.org">Ruby 1.8.2</a>
+      <li><a href="http://www.ruby-lang.org">Ruby 1.8.4</a>
       <li><a href="http://www.mysql.com">MySQL 4.1.x</a> (MySQL 認証を使用する場合)
-      <li><a href="http://tmtm.org/ja/mysql/ruby/">MySQL/Ruby 2.6.1</a> (MySQL 認証を使用する場合)
+      <li><a href="http://tmtm.org/ja/mysql/ruby/">MySQL/Ruby 2.7</a> (MySQL 認証を使用する場合)
     </ul>
 
     <h2>インストール</h2>
@@ -72,9 +73,9 @@
 
 	<pre class="code">
 # cd /usr/local
-# tar xpfvz /tmp/tpops-0.7.tar.gz
-# chown -R root:root tpops-0.7
-# ln -s tpops-0.7 tpops
+# tar xpfvz /tmp/tpops-0.7.2.tar.gz
+# chown -R root:root tpops-0.7.2
+# ln -s tpops-0.7.2 tpops
 </pre>
 
       <li>必要に応じて tpops.conf を編集してください。
@@ -363,6 +364,12 @@
     <h2>履歴</h2>
 
     <dl>
+      <dt>0.7.2 2006-01-26
+      <dd>
+        <ul>
+          <li>BUGFIX: Maildir の下に cur, new が無い時に落ちていた。
+        </ul>
+
       <dt>0.7.1 2005-07-22
       <dd>
 	<ul>
@@ -604,7 +611,7 @@
     <p>
 <!-- Created: Mon Jul 30 00:59:27 JST 2001 -->
 <!-- hhmts start -->
-Last modified: Fri Jul 22 10:23:44 JST 2005
+Last modified: Thu Jan 26 14:10:18 JST 2006
 <!-- hhmts end -->
     </p>
   </body>
