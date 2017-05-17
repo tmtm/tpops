@@ -87,7 +87,8 @@ class TPOPS
         rescue Errno::EEXIST
           raise TPOPS::Error, "cannot lock"
         end
-        files = read_maildir("#{maildir}/cur", false) if File.exist? "#{maildir}/cur"
+        files = []
+        files.concat read_maildir("#{maildir}/cur", false) if File.exist? "#{maildir}/cur"
         files.concat read_maildir("#{maildir}/new", true) if File.exist? "#{maildir}/new"
         files.sort! do |a, b|
           r = a.mtime <=> b.mtime
