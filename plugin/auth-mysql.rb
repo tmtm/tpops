@@ -1,6 +1,6 @@
 # $Id: auth-mysql.rb,v 1.12 2006/01/26 09:12:55 tommy Exp $
 
-require 'md5'
+require 'digest/md5'
 
 $options.update({
   "mysql-server"	=> true,
@@ -52,7 +52,7 @@ class TPOPS
       raise TPOPS::Error, "authentication failed" unless res
       login, pw, maildir = res.fetch_row
       if apop then
-        if pass != MD5.new(apop+pw).hexdigest then
+        if pass != Digest::MD5.hexdigest(apop+pw) then
           raise TPOPS::Error, "authentication failed"
         end
         @passwd = pw

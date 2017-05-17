@@ -241,7 +241,7 @@ class TPOPS
     if not TPOPS.conf["syslog"] or TPOPS.conf["syslog"] == "none" then
       Log.close
     else
-      f = "LOG_#{TPOPS.conf["syslog"].upcase}"
+      f = "LOG_#{TPOPS.conf["syslog"].upcase}".intern
       unless Syslog.constants.include? f then
         raise TPOPS::Error, "unknown facility: #{TPOPS.conf["syslog"]}"
       end
